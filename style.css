@@ -1,0 +1,83 @@
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background-color: #f5f8fa;
+}
+
+.layout-wrapper {
+  max-width: 1000px;
+  margin: 0 auto;
+  display: flex;
+  min-height: 100vh;
+  background-color: transparent;
+  border-left: 1px solid #ddd;
+  border-right: 1px solid #ddd;
+}
+
+/* Sidebar Menu */
+.sidebar {
+  flex: 1;
+  max-width: 200px;
+  background-color: #fff;
+  padding: 20px;
+  border-right: 1px solid #ddd;
+}
+
+.sidebar h2 {
+  margin-bottom: 20px;
+  color: #1da1f2;
+}
+
+.sidebar ul {
+  list-style: none;
+  padding: 0;
+}
+
+.sidebar li {
+  padding: 10px 0;
+  cursor: pointer;
+}
+
+#connectBtn {
+  padding: 10px 15px;
+  background-color: #1da1f2;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.wallet-address {
+  margin-top: 10px;
+  font-size: 0.9em;
+  word-break: break-word;
+  color: #333;
+}
+
+/* Tweet Feed */
+.main-feed {
+  flex: 2;
+  padding: 20px;
+  background-color: #e6ecf0;
+}
+
+.main-feed h2 {
+  margin-top: 0;
+}
+
+#tweetList > .tweet {
+  background: white;
+  padding: 15px;
+  margin-bottom: 10px;
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+/* Right Panel */
+.right-panel {
+  flex: 1;
+  max-width: 200px;
+  background-color: #fff;
+  padding: 20px;
+  border-left: 1px solid #ddd;
+}
