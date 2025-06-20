@@ -41,7 +41,7 @@ closeModal.addEventListener('click', () => {
   walletModal.style.display = 'none';
 });
 
-// Connect with MetaMask and switch to Sepolia
+// Connect with MetaMask (no network switching)
 metamaskBtn.addEventListener('click', async () => {
   if (typeof window.ethereum === 'undefined') {
     alert('MetaMask not installed');
@@ -53,12 +53,6 @@ metamaskBtn.addEventListener('click', async () => {
     await provider.send('eth_requestAccounts', []);
     signer = provider.getSigner();
     connectedAddress = await signer.getAddress();
-
-    // Switch to Sepolia (chainId: 11155111)
-    await window.ethereum.request({
-      method: 'wallet_switchEthereumChain',
-      params: [{ chainId: '0xaa36a7' }],
-    });
 
     localStorage.setItem('walletConnected', 'true');
     updateUIAfterConnect(connectedAddress);
@@ -72,7 +66,7 @@ metamaskBtn.addEventListener('click', async () => {
 });
 
 function updateUIAfterConnect(address) {
-  connectBtn.textContent = shortenAddress(address) + ' (Logout)';
+  connectBtn.textContent = `${shortenAddress(address)} (Logout)`;
   walletAddressDiv.textContent = `Connected: ${address}`;
 }
 
@@ -93,8 +87,8 @@ function fetchTweetsFromChain(address) {
   tweetList.innerHTML = ''; // Clear old tweets
 
   const tweets = [
-    { user: address, content: "Hello from Sepolia!" },
-    { user: address, content: "This is a blockchain tweet." }
+    { user: address, content: "Hello from the blockchain!" },
+    { user: address, content: "This is a decentralized tweet." }
   ];
 
   tweets.forEach(tweet => {
