@@ -28,6 +28,7 @@ if (window.ethereum) {
       }
     }
   });
+  
 }
 
 // Load on page refresh
