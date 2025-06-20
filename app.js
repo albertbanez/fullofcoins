@@ -10,7 +10,7 @@ let connectedAddress = null;
 
 if (window.ethereum) {
   window.ethereum.on('accountsChanged', async (accounts) => {
-    if (accounts.length > 0 && !connectedAddress) {
+    if (accounts.length > 0) {
       // Wallet was just unlocked or changed — connect automatically
       try {
         provider = new ethers.providers.Web3Provider(window.ethereum);
@@ -26,9 +26,31 @@ if (window.ethereum) {
         console.error('Error during accountsChanged connect:', err);
         showToast('Failed to connect wallet ❌', false);
       }
+    } else {
+      // Wallet was disconnected
+      logoutWallet();
     }
   });
   
+  // Add this new event listener for the connect event
+  window.ethereum.on('connect', async () => {
+    try {
+      provider = new ethers.providers.Web3Provider(window.ethereum);
+      const accounts = await provider.listAccounts();
+      if (accounts.length > 0 && !connectedAddress) {
+        signer = provider.getSigner();
+        connectedAddress = await signer.getAddress();
+
+        localStorage.setItem('walletConnected', 'true');
+        updateUIAfterConnect(connectedAddress);
+        walletModal.style.display = 'none';
+        fetchTweetsFromChain(connectedAddress);
+        showToast('Wallet connected ✅', true);
+      }
+    } catch (err) {
+      console.error('Error during connect event:', err);
+    }
+  });
 }
 
 // Load on page refresh
@@ -66,6 +88,11 @@ closeModal.addEventListener('click', () => {
 
 // Connect with MetaMask (no network switching)
 metamaskBtn.addEventListener('click', async () => {
+  if (connectedAddress) {
+    walletModal.style.display = 'none';
+    return;
+  }
+
   if (typeof window.ethereum === 'undefined') {
     alert('MetaMask not installed');
     return;
