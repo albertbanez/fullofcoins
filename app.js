@@ -8,6 +8,28 @@ let provider;
 let signer;
 let connectedAddress = null;
 
+if (window.ethereum) {
+  window.ethereum.on('accountsChanged', async (accounts) => {
+    if (accounts.length > 0 && !connectedAddress) {
+      // Wallet was just unlocked or changed — connect automatically
+      try {
+        provider = new ethers.providers.Web3Provider(window.ethereum);
+        signer = provider.getSigner();
+        connectedAddress = await signer.getAddress();
+
+        localStorage.setItem('walletConnected', 'true');
+        updateUIAfterConnect(connectedAddress);
+        walletModal.style.display = 'none';
+        fetchTweetsFromChain(connectedAddress);
+        showToast('Wallet connected ✅', true);
+      } catch (err) {
+        console.error('Error during accountsChanged connect:', err);
+        showToast('Failed to connect wallet ❌', false);
+      }
+    }
+  });
+}
+
 // Load on page refresh
 window.addEventListener('DOMContentLoaded', async () => {
   if (window.ethereum && localStorage.getItem('walletConnected') === 'true') {
