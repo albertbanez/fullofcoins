@@ -100,7 +100,7 @@ metamaskBtn.addEventListener('click', async () => {
     
     if (isMobile) {
       // Try to open MetaMask mobile app or redirect to install page
-      window.location.href = 'https://metamask.app.link/dapp/' + encodeURIComponent(window.location.href);
+      window.location.href = 'https://metamask.app.link/dapp/fullofcoins.com';
     } else {
       alert('MetaMask not installed. Please install MetaMask to continue.');
       window.open('https://metamask.io/download.html', '_blank');
