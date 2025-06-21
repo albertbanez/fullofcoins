@@ -93,8 +93,18 @@ metamaskBtn.addEventListener('click', async () => {
     return;
   }
 
+  // Check if MetaMask is installed (desktop) or if it's a mobile browser
   if (typeof window.ethereum === 'undefined') {
-    alert('MetaMask not installed');
+    // Check if user is on a mobile device
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    
+    if (isMobile) {
+      // Try to open MetaMask mobile app or redirect to install page
+      window.location.href = 'https://metamask.app.link/dapp/' + encodeURIComponent(window.location.href);
+    } else {
+      alert('MetaMask not installed. Please install MetaMask to continue.');
+      window.open('https://metamask.io/download.html', '_blank');
+    }
     return;
   }
 
