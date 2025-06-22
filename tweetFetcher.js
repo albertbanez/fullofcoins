@@ -72,16 +72,16 @@ window.tweetFetcher = (() => {
                     }
                 })
 
-                allTweets.push(...parsedLogs)
-
-                // ✅ Only update last scanned block after a successful range
-                setLastScannedBlock(chainId, to)
+                if (parsedLogs.length > 0) {
+                    allTweets.push(...parsedLogs)
+                    setLastScannedBlock(chainId, to) // ✅ Only update if data was found
+                }
             } catch (err) {
                 console.warn(
                     `Error scanning ${from}-${to} on chain ${chainId}`,
                     err.message
                 )
-                break // Stop scanning on persistent error
+                break
             }
         }
 
@@ -91,8 +91,6 @@ window.tweetFetcher = (() => {
     function loadCachedTweets() {
         const raw = localStorage.getItem(cacheKey)
         if (!raw) return
-
-        console.log(raw)
 
         try {
             const cache = JSON.parse(raw)
@@ -118,12 +116,29 @@ window.tweetFetcher = (() => {
 
         for (const chain of chains) {
             const fresh = await fetchTweetsForChain(chain)
-            cache[chain.chainId] = fresh
-            combined = combined.concat(fresh)
+
+            if (fresh.length > 0) {
+                // Merge with previous tweets from this chain
+                const previous = cache[chain.chainId] || []
+                const combinedChainTweets = [...previous, ...fresh]
+
+                // Deduplicate by `${chainId}-${id}`
+                const unique = Object.values(
+                    combinedChainTweets.reduce((map, tweet) => {
+                        map[`${tweet.chainId}-${tweet.id}`] = tweet
+                        return map
+                    }, {})
+                )
+
+                cache[chain.chainId] = unique
+                combined.push(...unique)
+            } else if (cache[chain.chainId]) {
+                // No new tweets, reuse existing cache
+                combined.push(...cache[chain.chainId])
+            }
         }
 
-        // Deduplicate + sort
-        const unique = Object.values(
+        const finalTweets = Object.values(
             combined.reduce((map, tweet) => {
                 map[`${tweet.chainId}-${tweet.id}`] = tweet
                 return map
@@ -131,12 +146,17 @@ window.tweetFetcher = (() => {
         ).sort((a, b) => b.timestamp - a.timestamp)
 
         localStorage.setItem(cacheKey, JSON.stringify(cache))
-        renderTweets(unique)
+        renderTweets(finalTweets)
     }
 
     function renderTweets(tweets) {
         const tweetList = document.getElementById('tweetList')
         tweetList.innerHTML = ''
+
+        if (!tweets || tweets.length === 0) {
+            tweetList.innerHTML = `<p style="opacity: 0.6;">No tweets found on-chain yet.</p>`
+            return
+        }
 
         tweets.forEach((tweet) => {
             const div = document.createElement('div')
