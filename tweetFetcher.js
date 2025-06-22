@@ -5,6 +5,16 @@ window.tweetFetcher = (() => {
 
     const cacheKey = 'cachedTweets'
 
+    function getLastScannedBlock(chainId, defaultStart) {
+        const raw = localStorage.getItem(`lastScannedBlock_${chainId}`)
+        const block = raw ? parseInt(raw) : defaultStart
+        return isNaN(block) ? defaultStart : block
+    }
+
+    function setLastScannedBlock(chainId, block) {
+        localStorage.setItem(`lastScannedBlock_${chainId}`, block)
+    }
+
     async function fetchTweetsForChain({
         rpcUrl,
         contractAddress,
@@ -13,14 +23,27 @@ window.tweetFetcher = (() => {
     }) {
         const provider = new ethers.providers.JsonRpcProvider(rpcUrl)
         const contract = new ethers.Contract(contractAddress, abi, provider)
-        const latestBlock = await provider.getBlockNumber()
 
-        const lastScannedKey = `lastScannedBlock_${chainId}`
-        const lastScanned =
-            parseInt(localStorage.getItem(lastScannedKey)) || startBlock
+        let latestBlock
+        try {
+            latestBlock = await provider.getBlockNumber()
+        } catch (err) {
+            console.warn(`Failed to get latest block for chain ${chainId}`, err)
+            return []
+        }
 
-        let allTweets = []
-        for (let from = lastScanned; from <= latestBlock; from += 10000) {
+        let fromBlock = getLastScannedBlock(chainId, startBlock)
+
+        if (fromBlock > latestBlock) {
+            console.warn(
+                `lastScannedBlock (${fromBlock}) > latestBlock (${latestBlock}), adjusting`
+            )
+            fromBlock = latestBlock
+        }
+
+        const allTweets = []
+
+        for (let from = fromBlock; from <= latestBlock; from += 10000) {
             const to = Math.min(from + 9999, latestBlock)
 
             try {
@@ -35,49 +58,55 @@ window.tweetFetcher = (() => {
                     ],
                 })
 
-                for (const log of logs) {
+                const parsedLogs = logs.map((log) => {
                     const parsed = contract.interface.parseLog(log)
                     const { id, author, content, timestamp, chainId } =
                         parsed.args
 
-                    allTweets.push({
+                    return {
                         id: id.toString(),
                         author,
                         content,
                         timestamp: parseInt(timestamp),
                         chainId: parseInt(chainId),
-                    })
-                }
+                    }
+                })
 
-                // Save progress
-                localStorage.setItem(lastScannedKey, to)
+                allTweets.push(...parsedLogs)
+
+                // ✅ Only update last scanned block after a successful range
+                setLastScannedBlock(chainId, to)
             } catch (err) {
                 console.warn(
-                    `Block range ${from}-${to} on chain ${chainId} failed:`,
+                    `Error scanning ${from}-${to} on chain ${chainId}`,
                     err.message
                 )
-                break // Avoid looping further if there's a persistent issue
+                break // Stop scanning on persistent error
             }
         }
 
         return allTweets
     }
+
     function loadCachedTweets() {
         const raw = localStorage.getItem(cacheKey)
         if (!raw) return
 
+        console.log(raw)
+
         try {
             const cache = JSON.parse(raw)
-            let tweets = Object.values(cache)
+            const tweets = Object.values(cache)
                 .flat()
                 .reduce((map, tweet) => {
                     map[`${tweet.chainId}-${tweet.id}`] = tweet
                     return map
                 }, {})
 
-            renderTweets(
-                Object.values(tweets).sort((a, b) => b.timestamp - a.timestamp)
+            const sorted = Object.values(tweets).sort(
+                (a, b) => b.timestamp - a.timestamp
             )
+            renderTweets(sorted)
         } catch (err) {
             console.warn('Failed to parse cached tweets:', err)
         }
@@ -85,25 +114,24 @@ window.tweetFetcher = (() => {
 
     async function fetchAndUpdateTweets(chains) {
         const cache = JSON.parse(localStorage.getItem(cacheKey) || '{}')
-        let combinedTweets = []
+        let combined = []
 
         for (const chain of chains) {
-            const freshTweets = await fetchTweetsForChain(chain)
-            cache[chain.chainId] = freshTweets
-            combinedTweets = combinedTweets.concat(freshTweets)
+            const fresh = await fetchTweetsForChain(chain)
+            cache[chain.chainId] = fresh
+            combined = combined.concat(fresh)
         }
 
-        localStorage.setItem(cacheKey, JSON.stringify(cache))
-
-        // Deduplicate and sort
-        const finalTweets = Object.values(
-            combinedTweets.reduce((map, tweet) => {
+        // Deduplicate + sort
+        const unique = Object.values(
+            combined.reduce((map, tweet) => {
                 map[`${tweet.chainId}-${tweet.id}`] = tweet
                 return map
             }, {})
         ).sort((a, b) => b.timestamp - a.timestamp)
 
-        renderTweets(finalTweets)
+        localStorage.setItem(cacheKey, JSON.stringify(cache))
+        renderTweets(unique)
     }
 
     function renderTweets(tweets) {
