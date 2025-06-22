@@ -17,8 +17,8 @@ window.tweetFetcher = (() => {
 
         let allTweets = []
 
-        for (let from = startBlock; from <= latestBlock; from += 1000) {
-            const to = Math.min(from + 999, latestBlock)
+        for (let from = startBlock; from <= latestBlock; from += 10000) {
+            const to = Math.min(from + 9999, latestBlock)
 
             try {
                 const logs = await provider.getLogs({
