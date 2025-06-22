@@ -5,25 +5,20 @@ window.tweetFetcher = (() => {
 
     const cacheKey = 'cachedTweets'
 
-    // Get fromBlock based on cached tweets for this chain
-    function getFromBlockFromCache(chainId, defaultStartBlock) {
+    function loadCache() {
         const raw = localStorage.getItem(cacheKey)
-        if (!raw) return defaultStartBlock
+        return raw ? JSON.parse(raw) : {}
+    }
 
-        try {
-            const cache = JSON.parse(raw)
-            const chainTweets = cache[chainId] || []
-            if (chainTweets.length === 0) return defaultStartBlock
+    function saveCache(data) {
+        localStorage.setItem(cacheKey, JSON.stringify(data))
+    }
 
-            // Get max blockNumber from cached tweets
-            const maxBlock = Math.max(
-                ...chainTweets.map((t) => t.blockNumber || 0)
-            )
-            // Start scanning from next block after max cached block
-            return maxBlock > 0 ? maxBlock + 1 : defaultStartBlock
-        } catch (e) {
-            return defaultStartBlock
-        }
+    function getFromBlock(chainId, defaultStartBlock) {
+        const cache = loadCache()
+        const chainData = cache[chainId]
+        if (!chainData || !chainData.lastScannedBlock) return defaultStartBlock
+        return chainData.lastScannedBlock + 1
     }
 
     async function fetchTweetsForChain({
@@ -40,14 +35,14 @@ window.tweetFetcher = (() => {
             latestBlock = await provider.getBlockNumber()
         } catch (err) {
             console.warn(`Failed to get latest block for chain ${chainId}`, err)
-            return []
+            return { tweets: [], lastScannedBlock: null }
         }
 
-        // Use cached tweets to find fromBlock, fallback to startBlock
-        let fromBlock = getFromBlockFromCache(chainId, startBlock)
+        let fromBlock = getFromBlock(chainId, startBlock)
         if (fromBlock > latestBlock) fromBlock = latestBlock
 
         const allTweets = []
+        let finalScannedBlock = fromBlock - 1
 
         for (let from = fromBlock; from <= latestBlock; from += 10000) {
             const to = Math.min(from + 9999, latestBlock)
@@ -79,78 +74,75 @@ window.tweetFetcher = (() => {
                     }
                 })
 
-                if (parsedLogs.length > 0) {
-                    allTweets.push(...parsedLogs)
-                    // no more storing last scanned block locally, skip that
-                }
+                allTweets.push(...parsedLogs)
+                finalScannedBlock = to
             } catch (err) {
                 console.warn(
-                    `Error scanning ${from}-${to} on chain ${chainId}`,
+                    `Error scanning ${from}-${to} on chain ${chainId}:`,
                     err.message
                 )
                 break
             }
         }
 
-        return allTweets
+        return { tweets: allTweets, lastScannedBlock: finalScannedBlock }
     }
 
     function loadCachedTweets() {
-        const raw = localStorage.getItem(cacheKey)
-        if (!raw) return
+        const cache = loadCache()
+        const combined = []
 
-        try {
-            const cache = JSON.parse(raw)
-            const tweets = Object.values(cache)
-                .flat()
-                .reduce((map, tweet) => {
-                    map[`${tweet.chainId}-${tweet.id}`] = tweet
-                    return map
-                }, {})
+        Object.values(cache).forEach((chainData) => {
+            if (chainData.tweets) {
+                combined.push(...chainData.tweets)
+            }
+        })
 
-            const sorted = Object.values(tweets).sort(
-                (a, b) => b.timestamp - a.timestamp
-            )
-            renderTweets(sorted)
-        } catch (err) {
-            console.warn('Failed to parse cached tweets:', err)
-        }
+        const sorted = combined.sort((a, b) => b.timestamp - a.timestamp)
+        renderTweets(sorted)
     }
 
     async function fetchAndUpdateTweets(chains) {
-        const cache = JSON.parse(localStorage.getItem(cacheKey) || '{}')
-        let combined = []
+        const cache = loadCache()
+        let allTweets = []
 
         for (const chain of chains) {
-            const fresh = await fetchTweetsForChain(chain)
+            const { tweets: freshTweets, lastScannedBlock } =
+                await fetchTweetsForChain(chain)
 
-            if (fresh.length > 0) {
-                const previous = cache[chain.chainId] || []
-                const combinedChainTweets = [...previous, ...fresh]
+            const chainId = chain.chainId.toString()
+            const existing = cache[chainId]?.tweets || []
 
-                const unique = Object.values(
-                    combinedChainTweets.reduce((map, tweet) => {
-                        map[`${tweet.chainId}-${tweet.id}`] = tweet
-                        return map
-                    }, {})
-                )
+            const merged = [...existing, ...freshTweets]
+            const unique = Object.values(
+                merged.reduce((map, tweet) => {
+                    map[`${tweet.chainId}-${tweet.id}`] = tweet
+                    return map
+                }, {})
+            )
 
-                cache[chain.chainId] = unique
-                combined.push(...unique)
-            } else if (cache[chain.chainId]) {
-                combined.push(...cache[chain.chainId])
+            cache[chainId] = {
+                tweets: unique,
+                lastScannedBlock:
+                    lastScannedBlock ??
+                    cache[chainId]?.lastScannedBlock ??
+                    chain.startBlock,
             }
+
+            allTweets.push(...unique)
         }
 
-        const finalTweets = Object.values(
-            combined.reduce((map, tweet) => {
-                map[`${tweet.chainId}-${tweet.id}`] = tweet
-                return map
-            }, {})
-        ).sort((a, b) => b.timestamp - a.timestamp)
+        saveCache(cache)
 
-        localStorage.setItem(cacheKey, JSON.stringify(cache))
-        renderTweets(finalTweets)
+        const finalSorted = allTweets.reduce((map, tweet) => {
+            map[`${tweet.chainId}-${tweet.id}`] = tweet
+            return map
+        }, {})
+
+        const sorted = Object.values(finalSorted).sort(
+            (a, b) => b.timestamp - a.timestamp
+        )
+        renderTweets(sorted)
     }
 
     function renderTweets(tweets) {
