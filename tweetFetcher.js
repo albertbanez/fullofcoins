@@ -5,14 +5,25 @@ window.tweetFetcher = (() => {
 
     const cacheKey = 'cachedTweets'
 
-    function getLastScannedBlock(chainId, defaultStart) {
-        const raw = localStorage.getItem(`lastScannedBlock_${chainId}`)
-        const block = raw ? parseInt(raw) : defaultStart
-        return isNaN(block) ? defaultStart : block
-    }
+    // Get fromBlock based on cached tweets for this chain
+    function getFromBlockFromCache(chainId, defaultStartBlock) {
+        const raw = localStorage.getItem(cacheKey)
+        if (!raw) return defaultStartBlock
 
-    function setLastScannedBlock(chainId, block) {
-        localStorage.setItem(`lastScannedBlock_${chainId}`, block)
+        try {
+            const cache = JSON.parse(raw)
+            const chainTweets = cache[chainId] || []
+            if (chainTweets.length === 0) return defaultStartBlock
+
+            // Get max blockNumber from cached tweets
+            const maxBlock = Math.max(
+                ...chainTweets.map((t) => t.blockNumber || 0)
+            )
+            // Start scanning from next block after max cached block
+            return maxBlock > 0 ? maxBlock + 1 : defaultStartBlock
+        } catch (e) {
+            return defaultStartBlock
+        }
     }
 
     async function fetchTweetsForChain({
@@ -32,7 +43,8 @@ window.tweetFetcher = (() => {
             return []
         }
 
-        let fromBlock = getLastScannedBlock(chainId, startBlock)
+        // Use cached tweets to find fromBlock, fallback to startBlock
+        let fromBlock = getFromBlockFromCache(chainId, startBlock)
         if (fromBlock > latestBlock) fromBlock = latestBlock
 
         const allTweets = []
@@ -63,12 +75,13 @@ window.tweetFetcher = (() => {
                         content,
                         timestamp: parseInt(timestamp),
                         chainId: parseInt(chainId),
+                        blockNumber: log.blockNumber,
                     }
                 })
 
                 if (parsedLogs.length > 0) {
                     allTweets.push(...parsedLogs)
-                    setLastScannedBlock(chainId, to)
+                    // no more storing last scanned block locally, skip that
                 }
             } catch (err) {
                 console.warn(
@@ -134,7 +147,7 @@ window.tweetFetcher = (() => {
                 map[`${tweet.chainId}-${tweet.id}`] = tweet
                 return map
             }, {})
-        ).sort((a, b) => b.timestamp - a.timestamp) // ✅ Newest first
+        ).sort((a, b) => b.timestamp - a.timestamp)
 
         localStorage.setItem(cacheKey, JSON.stringify(cache))
         renderTweets(finalTweets)
