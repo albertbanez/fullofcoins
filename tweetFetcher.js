@@ -15,9 +15,12 @@ window.tweetFetcher = (() => {
         const contract = new ethers.Contract(contractAddress, abi, provider)
         const latestBlock = await provider.getBlockNumber()
 
-        let allTweets = []
+        const lastScannedKey = `lastScannedBlock_${chainId}`
+        const lastScanned =
+            parseInt(localStorage.getItem(lastScannedKey)) || startBlock
 
-        for (let from = startBlock; from <= latestBlock; from += 10000) {
+        let allTweets = []
+        for (let from = lastScanned; from <= latestBlock; from += 10000) {
             const to = Math.min(from + 9999, latestBlock)
 
             try {
@@ -45,17 +48,20 @@ window.tweetFetcher = (() => {
                         chainId: parseInt(chainId),
                     })
                 }
+
+                // Save progress
+                localStorage.setItem(lastScannedKey, to)
             } catch (err) {
                 console.warn(
                     `Block range ${from}-${to} on chain ${chainId} failed:`,
                     err.message
                 )
+                break // Avoid looping further if there's a persistent issue
             }
         }
 
         return allTweets
     }
-
     function loadCachedTweets() {
         const raw = localStorage.getItem(cacheKey)
         if (!raw) return
