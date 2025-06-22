@@ -118,6 +118,6 @@ window.tweetFetcher = (() => {
 
     return {
         loadCachedTweets,
-      fetchAndUpdateTweets,
+        fetchAndUpdateTweets,
     }
 })()
