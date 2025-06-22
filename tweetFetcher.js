@@ -134,9 +134,7 @@ window.tweetFetcher = (() => {
                 map[`${tweet.chainId}-${tweet.id}`] = tweet
                 return map
             }, {})
-        )
-            .sort((a, b) => b.timestamp - a.timestamp)
-            .reverse() // latest first
+        ).sort((a, b) => b.timestamp - a.timestamp) // ✅ Newest first
 
         localStorage.setItem(cacheKey, JSON.stringify(cache))
         renderTweets(finalTweets)
