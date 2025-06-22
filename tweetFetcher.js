@@ -4,7 +4,6 @@ window.tweetFetcher = (() => {
     ]
 
     const cacheKey = 'cachedTweets'
-    const maxTweetAge = 180 // Optional: skip scan if recent tweets within 3 minutes
 
     function getLastScannedBlock(chainId, defaultStart) {
         const raw = localStorage.getItem(`lastScannedBlock_${chainId}`)
@@ -14,17 +13,6 @@ window.tweetFetcher = (() => {
 
     function setLastScannedBlock(chainId, block) {
         localStorage.setItem(`lastScannedBlock_${chainId}`, block)
-    }
-
-    function timeAgo(timestamp) {
-        const seconds = Math.floor(Date.now() / 1000 - timestamp)
-        if (seconds < 60) return `${seconds}s ago`
-        const minutes = Math.floor(seconds / 60)
-        if (minutes < 60) return `${minutes}m ago`
-        const hours = Math.floor(minutes / 60)
-        if (hours < 24) return `${hours}h ago`
-        const days = Math.floor(hours / 24)
-        return `${days}d ago`
     }
 
     async function fetchTweetsForChain({
@@ -45,13 +33,7 @@ window.tweetFetcher = (() => {
         }
 
         let fromBlock = getLastScannedBlock(chainId, startBlock)
-
-        if (fromBlock > latestBlock) {
-            console.warn(
-                `lastScannedBlock (${fromBlock}) > latestBlock (${latestBlock}), adjusting`
-            )
-            fromBlock = latestBlock
-        }
+        if (fromBlock > latestBlock) fromBlock = latestBlock
 
         const allTweets = []
 
@@ -86,7 +68,7 @@ window.tweetFetcher = (() => {
 
                 if (parsedLogs.length > 0) {
                     allTweets.push(...parsedLogs)
-                    setLastScannedBlock(chainId, to) // ✅ Only if tweets found
+                    setLastScannedBlock(chainId, to)
                 }
             } catch (err) {
                 console.warn(
@@ -115,37 +97,24 @@ window.tweetFetcher = (() => {
 
             const sorted = Object.values(tweets).sort(
                 (a, b) => b.timestamp - a.timestamp
-            ) // ✅ newest first
+            )
             renderTweets(sorted)
         } catch (err) {
             console.warn('Failed to parse cached tweets:', err)
         }
     }
+
     async function fetchAndUpdateTweets(chains) {
         const cache = JSON.parse(localStorage.getItem(cacheKey) || '{}')
         let combined = []
 
         for (const chain of chains) {
-            const previous = cache[chain.chainId] || []
-            const latestCached =
-                previous.length > 0
-                    ? Math.max(...previous.map((t) => t.timestamp))
-                    : 0
-
-            const age = Math.floor(Date.now() / 1000) - latestCached
-
-            if (age < maxTweetAge) {
-                console.log(
-                    `⏩ Skipping chain ${chain.chainId}, tweets are fresh (${age}s ago)`
-                )
-                combined.push(...previous)
-                continue
-            }
-
             const fresh = await fetchTweetsForChain(chain)
 
             if (fresh.length > 0) {
+                const previous = cache[chain.chainId] || []
                 const combinedChainTweets = [...previous, ...fresh]
+
                 const unique = Object.values(
                     combinedChainTweets.reduce((map, tweet) => {
                         map[`${tweet.chainId}-${tweet.id}`] = tweet
@@ -155,8 +124,8 @@ window.tweetFetcher = (() => {
 
                 cache[chain.chainId] = unique
                 combined.push(...unique)
-            } else if (previous.length > 0) {
-                combined.push(...previous) // Use existing if no new found
+            } else if (cache[chain.chainId]) {
+                combined.push(...cache[chain.chainId])
             }
         }
 
@@ -165,7 +134,9 @@ window.tweetFetcher = (() => {
                 map[`${tweet.chainId}-${tweet.id}`] = tweet
                 return map
             }, {})
-        ).sort((a, b) => b.timestamp - a.timestamp)
+        )
+            .sort((a, b) => b.timestamp - a.timestamp)
+            .reverse() // latest first
 
         localStorage.setItem(cacheKey, JSON.stringify(cache))
         renderTweets(finalTweets)
@@ -186,7 +157,7 @@ window.tweetFetcher = (() => {
             div.innerHTML = `
         <strong>${tweet.author}</strong>
         <p>${tweet.content}</p>
-        <small>⛓ Chain: ${tweet.chainId} • 🕒 ${timeAgo(tweet.timestamp)}</small>
+        <small>⛓ Chain: ${tweet.chainId} • 🕒 ${new Date(tweet.timestamp * 1000).toLocaleString()}</small>
       `
             tweetList.appendChild(div)
         })
