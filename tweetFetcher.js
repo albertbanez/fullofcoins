@@ -13,7 +13,43 @@ window.tweetFetcher = (() => {
     }
 
     function saveCache(data) {
-        localStorage.setItem(cacheKey, JSON.stringify(data))
+        const maxTotalTweets = 500
+        const allTweets = []
+
+        // Flatten all tweets across chains and tag them with their chainId
+        for (const chainId in data) {
+            const tweets = data[chainId].tweets || []
+            tweets.forEach((tweet) => {
+                allTweets.push({ ...tweet, _chainId: chainId })
+            })
+        }
+
+        // Sort all tweets globally (latest first)
+        allTweets.sort(compareTweets)
+
+        // Trim to the newest maxTotalTweets
+        const trimmed = allTweets.slice(0, maxTotalTweets)
+
+        // Rebuild grouped data by chainId
+        const grouped = {}
+        trimmed.forEach((tweet) => {
+            const cid = tweet._chainId
+            if (!grouped[cid]) {
+                grouped[cid] = {
+                    tweets: [],
+                    lastScannedBlock: data[cid]?.lastScannedBlock || null,
+                }
+            }
+            delete tweet._chainId
+            grouped[cid].tweets.push(tweet)
+        })
+
+        try {
+            localStorage.setItem(cacheKey, JSON.stringify(grouped))
+        } catch (err) {
+            console.warn('⚠️ localStorage full or error saving cache:', err)
+            showWarningToast('🧹 Cache too large. Old tweets removed.')
+        }
     }
 
     function getFromBlock(chainId, defaultStartBlock) {
