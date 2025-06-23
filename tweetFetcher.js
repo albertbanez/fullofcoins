@@ -4,6 +4,8 @@ window.tweetFetcher = (() => {
     ]
 
     const cacheKey = 'cachedTweets'
+    let currentTweetMap = {} // Keeps track of what's shown
+    let newTweetsQueue = [] // Holds newly fetched tweets
 
     function loadCache() {
         const raw = localStorage.getItem(cacheKey)
@@ -109,11 +111,11 @@ window.tweetFetcher = (() => {
         for (const chain of chains) {
             const { tweets: freshTweets, lastScannedBlock } =
                 await fetchTweetsForChain(chain)
-
             const chainId = chain.chainId.toString()
-            const existing = cache[chainId]?.tweets || []
 
+            const existing = cache[chainId]?.tweets || []
             const merged = [...existing, ...freshTweets]
+
             const unique = Object.values(
                 merged.reduce((map, tweet) => {
                     map[`${tweet.chainId}-${tweet.id}`] = tweet
@@ -134,20 +136,60 @@ window.tweetFetcher = (() => {
 
         saveCache(cache)
 
-        const finalSorted = allTweets.reduce((map, tweet) => {
+        const finalMap = allTweets.reduce((map, tweet) => {
             map[`${tweet.chainId}-${tweet.id}`] = tweet
             return map
         }, {})
-
-        const sorted = Object.values(finalSorted).sort(
+        const sorted = Object.values(finalMap).sort(
             (a, b) => b.timestamp - a.timestamp
+        ) // newest first
+
+        const newOnly = sorted.filter(
+            (tweet) => !currentTweetMap[`${tweet.chainId}-${tweet.id}`]
         )
-        renderTweets(sorted)
+        if (newOnly.length > 0) {
+            newTweetsQueue = newOnly
+            showNewPostsBanner(newOnly.length)
+        }
+    }
+
+    function showNewPostsBanner(count) {
+        const banner = document.getElementById('newPostsBanner')
+        banner.innerHTML = `<button onclick="tweetFetcher.showNewTweets()">🔵 Show ${count} new post${count > 1 ? 's' : ''}</button>`
+        banner.style.display = 'block'
+    }
+
+    function hideNewPostsBanner() {
+        const banner = document.getElementById('newPostsBanner')
+        banner.innerHTML = ''
+        banner.style.display = 'none'
+    }
+
+    function showNewTweets() {
+        const tweetList = document.getElementById('tweetList')
+
+        newTweetsQueue
+            .sort((a, b) => b.timestamp - a.timestamp)
+            .forEach((tweet) => {
+                const div = document.createElement('div')
+                div.className = 'tweet'
+                div.innerHTML = `
+          <strong>${tweet.author}</strong>
+          <p>${tweet.content}</p>
+          <small>⛓ Chain: ${tweet.chainId} • 🕒 ${new Date(tweet.timestamp * 1000).toLocaleString()}</small>
+        `
+                tweetList.insertBefore(div, tweetList.firstChild)
+                currentTweetMap[`${tweet.chainId}-${tweet.id}`] = true
+            })
+
+        newTweetsQueue = []
+        hideNewPostsBanner()
     }
 
     function renderTweets(tweets) {
         const tweetList = document.getElementById('tweetList')
         tweetList.innerHTML = ''
+        currentTweetMap = {}
 
         if (!tweets || tweets.length === 0) {
             tweetList.innerHTML = `<p style="opacity: 0.6;">No tweets found on-chain yet.</p>`
@@ -163,11 +205,13 @@ window.tweetFetcher = (() => {
         <small>⛓ Chain: ${tweet.chainId} • 🕒 ${new Date(tweet.timestamp * 1000).toLocaleString()}</small>
       `
             tweetList.appendChild(div)
+            currentTweetMap[`${tweet.chainId}-${tweet.id}`] = true
         })
     }
 
     return {
         loadCachedTweets,
         fetchAndUpdateTweets,
+        showNewTweets,
     }
 })()

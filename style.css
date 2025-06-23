@@ -137,3 +137,16 @@ body {
     opacity: 1;
     transform: translateY(0);
 }
+
+#newPostsBanner button {
+  background: #007bff;
+  color: white;
+  border: none;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-weight: bold;
+  cursor: pointer;
+}
+#newPostsBanner button:hover {
+  background: #0056b3;
+}

@@ -23,6 +23,7 @@
             <!-- Tweet Feed -->
             <div class="main-feed">
                 <h2>Decentralized Tweets</h2>
+                <div id="newPostsBanner" style="text-align:center; margin: 10px;"></div>
                 <div id="tweetList">
                     <!-- Tweets will go here -->
                 </div>
@@ -76,14 +77,15 @@
             ]
 
             window.addEventListener('DOMContentLoaded', () => {
-                const checkReady = setInterval(() => {
+                const ready = setInterval(() => {
                     if (window.tweetFetcher) {
-                        clearInterval(checkReady)
-                        window.tweetFetcher.loadCachedTweets() // show cache immediately
-                        window.tweetFetcher.fetchAndUpdateTweets(chains) // then fetch from chain
+                        clearInterval(ready);
+                        tweetFetcher.loadCachedTweets(); // Show immediately
+                        tweetFetcher.fetchAndUpdateTweets(chains); // Start scan
+                        setInterval(() => tweetFetcher.fetchAndUpdateTweets(chains), 60000); // Auto-refresh
                     }
-                }, 100)
-            })
+                }, 100);
+            });
         </script>
     </body>
 </html>
