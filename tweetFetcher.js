@@ -166,17 +166,20 @@ window.tweetFetcher = (() => {
     function showNewTweets() {
         const tweetList = document.getElementById('tweetList')
 
-        newTweetsQueue.sort(compareTweets).forEach((tweet) => {
+        // Sort newest first (descending), then insert in reverse order to keep newest on top
+        newTweetsQueue.sort(compareTweets)
+        for (let i = newTweetsQueue.length - 1; i >= 0; i--) {
+            const tweet = newTweetsQueue[i]
             const div = document.createElement('div')
             div.className = 'tweet'
             div.innerHTML = `
-          <strong>${tweet.author}</strong>
-          <p>${tweet.content}</p>
-          <small>⛓ Chain: ${tweet.chainId} • 🕒 ${new Date(tweet.timestamp * 1000).toLocaleString()}</small>
-        `
+      <strong>${tweet.author}</strong>
+      <p>${tweet.content}</p>
+      <small>⛓ Chain: ${tweet.chainId} • 🕒 ${new Date(tweet.timestamp * 1000).toLocaleString()}</small>
+    `
             tweetList.insertBefore(div, tweetList.firstChild)
             currentTweetMap[`${tweet.chainId}-${tweet.id}`] = true
-        })
+        }
 
         newTweetsQueue = []
         hideNewPostsBanner()
