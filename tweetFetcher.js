@@ -4,8 +4,8 @@ window.tweetFetcher = (() => {
     ]
 
     const cacheKey = 'cachedTweets'
-    let currentTweetMap = {} // Keeps track of what's shown
-    let newTweetsQueue = [] // Holds newly fetched tweets
+    let currentTweetMap = {}
+    let newTweetsQueue = []
 
     function loadCache() {
         const raw = localStorage.getItem(cacheKey)
@@ -100,7 +100,7 @@ window.tweetFetcher = (() => {
             }
         })
 
-        const sorted = combined.sort((a, b) => b.timestamp - a.timestamp)
+        const sorted = combined.sort(compareTweets) // newest on top
         renderTweets(sorted)
     }
 
@@ -140,9 +140,7 @@ window.tweetFetcher = (() => {
             map[`${tweet.chainId}-${tweet.id}`] = tweet
             return map
         }, {})
-        const sorted = Object.values(finalMap).sort(
-            (a, b) => b.timestamp - a.timestamp
-        ) // newest first
+        const sorted = Object.values(finalMap).sort(compareTweets)
 
         const newOnly = sorted.filter(
             (tweet) => !currentTweetMap[`${tweet.chainId}-${tweet.id}`]
@@ -168,19 +166,17 @@ window.tweetFetcher = (() => {
     function showNewTweets() {
         const tweetList = document.getElementById('tweetList')
 
-        newTweetsQueue
-            .sort((a, b) => b.timestamp - a.timestamp)
-            .forEach((tweet) => {
-                const div = document.createElement('div')
-                div.className = 'tweet'
-                div.innerHTML = `
+        newTweetsQueue.sort(compareTweets).forEach((tweet) => {
+            const div = document.createElement('div')
+            div.className = 'tweet'
+            div.innerHTML = `
           <strong>${tweet.author}</strong>
           <p>${tweet.content}</p>
           <small>⛓ Chain: ${tweet.chainId} • 🕒 ${new Date(tweet.timestamp * 1000).toLocaleString()}</small>
         `
-                tweetList.insertBefore(div, tweetList.firstChild)
-                currentTweetMap[`${tweet.chainId}-${tweet.id}`] = true
-            })
+            tweetList.insertBefore(div, tweetList.firstChild)
+            currentTweetMap[`${tweet.chainId}-${tweet.id}`] = true
+        })
 
         newTweetsQueue = []
         hideNewPostsBanner()
@@ -207,6 +203,13 @@ window.tweetFetcher = (() => {
             tweetList.appendChild(div)
             currentTweetMap[`${tweet.chainId}-${tweet.id}`] = true
         })
+    }
+
+    function compareTweets(a, b) {
+        if (b.blockNumber !== a.blockNumber)
+            return b.blockNumber - a.blockNumber
+        if (b.id !== a.id) return parseInt(b.id) - parseInt(a.id)
+        return b.timestamp - a.timestamp
     }
 
     return {
