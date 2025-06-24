@@ -150,3 +150,10 @@ body {
 #newPostsBanner button:hover {
   background: #0056b3;
 }
+
+.tweet {
+    padding: 10px;
+    border-bottom: 1px solid #ddd;
+    contain: layout style;
+    will-change: transform;
+}

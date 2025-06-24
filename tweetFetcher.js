@@ -6,6 +6,8 @@ window.tweetFetcher = (() => {
     const cacheKey = 'cachedTweets'
     let currentTweetMap = {}
     let allSortedTweets = []
+    let currentOffset = 0
+    const BATCH_SIZE = 10
 
     function loadCache() {
         const raw = localStorage.getItem(cacheKey)
@@ -120,11 +122,61 @@ window.tweetFetcher = (() => {
         return { tweets: allTweets, lastScannedBlock: finalScannedBlock }
     }
 
+    function compareTweets(a, b) {
+        const aId = parseInt(a.id)
+        const bId = parseInt(b.id)
+        if (b.blockNumber !== a.blockNumber)
+            return b.blockNumber - a.blockNumber
+        if (bId !== aId) return bId - aId
+        return b.timestamp - a.timestamp
+    }
+
+    function refreshAllSortedTweetsFromCache() {
+        const cache = loadCache()
+        const combined = []
+
+        Object.values(cache).forEach((chainData) => {
+            if (chainData.tweets) {
+                combined.push(...chainData.tweets)
+            }
+        })
+
+        allSortedTweets = combined.sort(compareTweets)
+    }
+
+    function renderNextBatch() {
+        refreshAllSortedTweetsFromCache()
+
+        if (currentOffset >= allSortedTweets.length) return
+
+        const tweetList = document.getElementById('tweetList')
+        const fragment = document.createDocumentFragment()
+        const nextBatch = allSortedTweets.slice(
+            currentOffset,
+            currentOffset + BATCH_SIZE
+        )
+
+        nextBatch.forEach((tweet) => {
+            const div = document.createElement('div')
+            div.className = 'tweet'
+            div.innerHTML = `
+                <strong>${tweet.author}</strong>
+                <p>${tweet.content}</p>
+                <small>⛓ Chain: ${tweet.chainId} • 🕒 ${new Date(tweet.timestamp * 1000).toLocaleString()}</small>
+            `
+            fragment.appendChild(div)
+            currentTweetMap[`${tweet.chainId}-${tweet.id}`] = true
+        })
+
+        tweetList.appendChild(fragment)
+        currentOffset += BATCH_SIZE
+    }
+
     function renderTweets(tweets) {
         const tweetList = document.getElementById('tweetList')
         tweetList.innerHTML = ''
         currentTweetMap = {}
-
+        currentOffset = 0
         allSortedTweets = tweets.sort(compareTweets)
 
         if (allSortedTweets.length === 0) {
@@ -132,17 +184,7 @@ window.tweetFetcher = (() => {
             return
         }
 
-        allSortedTweets.forEach((tweet) => {
-            const div = document.createElement('div')
-            div.className = 'tweet'
-            div.innerHTML = `
-        <strong>${tweet.author}</strong>
-        <p>${tweet.content}</p>
-        <small>⛓ Chain: ${tweet.chainId} • 🕒 ${new Date(tweet.timestamp * 1000).toLocaleString()}</small>
-      `
-            tweetList.appendChild(div)
-            currentTweetMap[`${tweet.chainId}-${tweet.id}`] = true
-        })
+        renderNextBatch()
     }
 
     function loadCachedTweets() {
@@ -190,24 +232,6 @@ window.tweetFetcher = (() => {
         }
 
         saveCache(cache)
-
-        const finalMap = allTweets.reduce((map, tweet) => {
-            map[`${tweet.chainId}-${tweet.id}`] = tweet
-            return map
-        }, {})
-        const sorted = Object.values(finalMap).sort(compareTweets)
-
-        renderTweets(sorted)
-    }
-
-    function compareTweets(a, b) {
-        const aId = parseInt(a.id)
-        const bId = parseInt(b.id)
-
-        if (b.blockNumber !== a.blockNumber)
-            return b.blockNumber - a.blockNumber
-        if (bId !== aId) return bId - aId
-        return b.timestamp - a.timestamp
     }
 
     function showWarningToast(msg) {
@@ -218,6 +242,20 @@ window.tweetFetcher = (() => {
         toast.classList.add('show')
         setTimeout(() => toast.classList.remove('show'), 4000)
     }
+
+    // Debounced scroll listener
+    let scrollTimeout = null
+    window.addEventListener('scroll', () => {
+        if (scrollTimeout) return
+        scrollTimeout = setTimeout(() => {
+            scrollTimeout = null
+            const scrollY = window.scrollY + window.innerHeight
+            const threshold = document.documentElement.scrollHeight - 100
+            if (scrollY >= threshold) {
+                renderNextBatch()
+            }
+        }, 100)
+    })
 
     return {
         loadCachedTweets,
