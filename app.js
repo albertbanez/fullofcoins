@@ -120,7 +120,6 @@ metamaskBtn.addEventListener('click', async () => {
         localStorage.setItem('walletConnected', 'true')
         updateUIAfterConnect(connectedAddress)
         walletModal.style.display = 'none'
-        //fetchTweetsFromChain(connectedAddress)
         showToast('Wallet connected ✅', true)
     } catch (err) {
         console.error('Wallet connection error:', err)
