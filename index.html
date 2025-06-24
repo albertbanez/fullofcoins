@@ -29,7 +29,9 @@
         <h2>Decentralized Tweets</h2>
         <button id="right-panel-toggle-btn" class="menu-toggle">⋮</button>
       </div>
-      <div id="tweetList"></div>
+      <div id="tweetList">
+        <!-- Tweets will go here -->
+      </div>
     </div>
 
     <!-- Right Panel -->
@@ -54,13 +56,18 @@
   <script src="https://unpkg.com/ethers@5.7.2/dist/ethers.umd.min.js"></script>
   <script>
     const version = Date.now();
+
+    // Load CSS with cache-busting
     const link = document.createElement('link');
     link.rel = 'stylesheet';
     link.href = `style.css?v=${version}`;
     document.head.appendChild(link);
+
+    // Load JS files
     const script1 = document.createElement('script');
     script1.src = `app.js?v=${version}`;
     document.body.appendChild(script1);
+
     const script2 = document.createElement('script');
     script2.src = `tweetFetcher.js?v=${version}`;
     document.body.appendChild(script2);
@@ -82,6 +89,9 @@
           const leftPanel = document.getElementById('sidebar');
           const rightPanel = document.getElementById('right-panel');
           const overlay = document.getElementById('sidebar-overlay');
+          const walletModal = document.getElementById('walletModal');
+          const connectBtn = document.getElementById('connectBtn');
+          const closeModal = document.getElementById('closeModal');
 
           function closeAllPanels() {
             leftPanel.classList.remove('is-open');
@@ -89,45 +99,51 @@
             document.body.classList.remove('menu-is-open');
           }
 
+          // Toggle sidebar
           if (leftToggleBtn) {
             leftToggleBtn.addEventListener('click', (e) => {
               e.stopPropagation();
-              const isAlreadyOpen = leftPanel.classList.contains('is-open');
+              const isOpen = leftPanel.classList.contains('is-open');
               closeAllPanels();
-              if (!isAlreadyOpen) {
+              if (!isOpen) {
                 leftPanel.classList.add('is-open');
                 document.body.classList.add('menu-is-open');
               }
             });
           }
 
+          // Toggle right panel
           if (rightToggleBtn) {
             rightToggleBtn.addEventListener('click', (e) => {
               e.stopPropagation();
-              const isAlreadyOpen = rightPanel.classList.contains('is-open');
+              const isOpen = rightPanel.classList.contains('is-open');
               closeAllPanels();
-              if (!isAlreadyOpen) {
+              if (!isOpen) {
                 rightPanel.classList.add('is-open');
                 document.body.classList.add('menu-is-open');
               }
             });
           }
 
+          // Overlay click closes all panels
           if (overlay) {
             overlay.addEventListener('click', closeAllPanels);
           }
 
-          // Wallet Modal open/close
-          document.getElementById('connectBtn').addEventListener('click', () => {
-            document.getElementById('walletModal').style.display = 'flex';
+          // Connect Wallet button
+          connectBtn.addEventListener('click', () => {
+            closeAllPanels(); // auto-close panels first
+            walletModal.style.display = 'flex';
             document.body.classList.add('modal-open');
           });
 
-          document.getElementById('closeModal').addEventListener('click', () => {
-            document.getElementById('walletModal').style.display = 'none';
+          // Close wallet modal
+          closeModal.addEventListener('click', () => {
+            walletModal.style.display = 'none';
             document.body.classList.remove('modal-open');
           });
 
+          // Initialize tweet fetching
           tweetFetcher.init();
           tweetFetcher.loadCachedTweets();
           tweetFetcher.fetchAndUpdateTweets(chains);
