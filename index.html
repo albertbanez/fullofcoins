@@ -75,16 +75,37 @@
                 // Add more chains here
             ]
 
-            window.addEventListener('DOMContentLoaded', () => {
-                const ready = setInterval(() => {
-                    if (window.tweetFetcher) {
-                        clearInterval(ready);
-                        tweetFetcher.loadCachedTweets(); // Show immediately
-                        tweetFetcher.fetchAndUpdateTweets(chains); // Start scan
-                        setInterval(() => tweetFetcher.fetchAndUpdateTweets(chains), 60000); // Auto-refresh
-                    }
-                }, 100);
-            });
-        </script>
+window.addEventListener('DOMContentLoaded', () => {
+    const ready = setInterval(() => {
+        if (window.tweetFetcher) {
+            clearInterval(ready);
+            tweetFetcher.loadCachedTweets(); // Show immediately
+            tweetFetcher.fetchAndUpdateTweets(chains); // Start scan
+            setInterval(() => tweetFetcher.fetchAndUpdateTweets(chains), 60000); // Auto-refresh
+
+            // ✅ Add scroll listener here
+            const feed = document.querySelector('.main-feed')
+            if (feed) {
+                let scrollTimeout = null
+                feed.addEventListener('scroll', () => {
+                    if (scrollTimeout) return
+
+                    scrollTimeout = setTimeout(() => {
+                        scrollTimeout = null
+                        const scrollY = feed.scrollTop + feed.clientHeight
+                        const threshold = feed.scrollHeight - 100
+
+                        if (scrollY >= threshold) {
+                            if (window.tweetFetcher?.renderNextBatch) {
+                                tweetFetcher.renderNextBatch()
+                            }
+                        }
+                    }, 100)
+                })
+            }
+        }
+    }, 100)
+})      
+ </script>
     </body>
 </html>

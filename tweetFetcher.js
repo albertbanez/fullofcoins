@@ -243,14 +243,17 @@ window.tweetFetcher = (() => {
         setTimeout(() => toast.classList.remove('show'), 4000)
     }
 
-    // Debounced scroll listener
+    // Scroll listener on window for infinite scroll
     let scrollTimeout = null
     window.addEventListener('scroll', () => {
         if (scrollTimeout) return
+
         scrollTimeout = setTimeout(() => {
             scrollTimeout = null
+
             const scrollY = window.scrollY + window.innerHeight
             const threshold = document.documentElement.scrollHeight - 100
+
             if (scrollY >= threshold) {
                 renderNextBatch()
             }
@@ -260,5 +263,6 @@ window.tweetFetcher = (() => {
     return {
         loadCachedTweets,
         fetchAndUpdateTweets,
+        renderNextBatch, // expose so scroll handler can call it
     }
 })()

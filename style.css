@@ -1,14 +1,20 @@
+/* Global */
+html,
 body {
     margin: 0;
+    padding: 0;
     font-family: Arial, sans-serif;
     background-color: #f5f8fa;
+    height: 100%;
+    overflow: hidden; /* Prevent global scroll */
 }
 
+/* Layout */
 .layout-wrapper {
     max-width: 1000px;
     margin: 0 auto;
     display: flex;
-    min-height: 100vh;
+    height: 100vh;
     background-color: transparent;
     border-left: 1px solid #ddd;
     border-right: 1px solid #ddd;
@@ -21,6 +27,11 @@ body {
     background-color: #fff;
     padding: 20px;
     border-right: 1px solid #ddd;
+
+    position: sticky;
+    top: 0;
+    align-self: flex-start;
+    height: fit-content;
 }
 
 .sidebar h2 {
@@ -59,6 +70,8 @@ body {
     flex: 2;
     padding: 20px;
     background-color: #e6ecf0;
+    overflow-y: auto;
+    max-height: 100vh;
 }
 
 .main-feed h2 {
@@ -73,6 +86,14 @@ body {
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
+/* Tweet box mobile/rendering optimization */
+.tweet {
+    padding: 10px;
+    border-bottom: 1px solid #ddd;
+    contain: layout style;
+    will-change: transform;
+}
+
 /* Right Panel */
 .right-panel {
     flex: 1;
@@ -80,6 +101,11 @@ body {
     background-color: #fff;
     padding: 20px;
     border-left: 1px solid #ddd;
+
+    position: sticky;
+    top: 0;
+    align-self: flex-start;
+    height: fit-content;
 }
 
 /* Modal */
@@ -139,21 +165,14 @@ body {
 }
 
 #newPostsBanner button {
-  background: #007bff;
-  color: white;
-  border: none;
-  padding: 6px 14px;
-  border-radius: 6px;
-  font-weight: bold;
-  cursor: pointer;
+    background: #007bff;
+    color: white;
+    border: none;
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-weight: bold;
+    cursor: pointer;
 }
 #newPostsBanner button:hover {
-  background: #0056b3;
-}
-
-.tweet {
-    padding: 10px;
-    border-bottom: 1px solid #ddd;
-    contain: layout style;
-    will-change: transform;
+    background: #0056b3;
 }
