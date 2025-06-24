@@ -2,15 +2,15 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8" />
-    <!-- THIS IS THE CRITICAL CHANGE -->
+    <!-- CHANGE 1: Correct viewport for responsive design -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>fullofcoins</title>
     <link rel="icon" href="favicon.png" type="image/png" />
 </head>
 <body>
     <div class="layout-wrapper">
-        <!-- Sidebar Menu -->
-        <div class="sidebar">
+        <!-- CHANGE 2: Added id="sidebar" for easier JS targeting -->
+        <div class="sidebar" id="sidebar">
             <h2>fullofcoins</h2>
             <ul>
                 <li>🏠 Home</li>
@@ -21,9 +21,17 @@
             <div id="walletAddress" class="wallet-address"></div>
         </div>
 
+        <!-- CHANGE 3: New overlay to dim background when menu is open -->
+        <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
         <!-- Tweet Feed -->
         <div class="main-feed">
-            <h2>Decentralized Tweets</h2>
+            <!-- CHANGE 4: New wrapper for header to align button and title -->
+            <div class="feed-header">
+                <!-- CHANGE 5: New "hamburger" menu button -->
+                <button id="menu-toggle-btn" class="menu-toggle">☰</button>
+                <h2>Decentralized Tweets</h2>
+            </div>
             <div id="tweetList">
                 <!-- Tweets will go here -->
             </div>
@@ -51,41 +59,67 @@
     <!-- Scripts -->
     <script src="https://unpkg.com/ethers@5.7.2/dist/ethers.umd.min.js"></script>
     <script>
-        // --- The Final Initialization ---
-        const version = Date.now();
-        const link = document.createElement('link');
-        link.rel = 'stylesheet';
-        link.href = `style.css?v=${version}`;
-        document.head.appendChild(link);
-        const script1 = document.createElement('script');
-        script1.src = `app.js?v=${version}`;
-        document.body.appendChild(script1);
-        const script2 = document.createElement('script');
-        script2.src = `tweetFetcher.js?v=${version}`;
-        document.body.appendChild(script2);
+    // --- The Final Initialization ---
+    const version = Date.now();
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = `style.css?v=${version}`;
+    document.head.appendChild(link);
+    const script1 = document.createElement('script');
+    script1.src = `app.js?v=${version}`;
+    document.body.appendChild(script1);
+    const script2 = document.createElement('script');
+    script2.src = `tweetFetcher.js?v=${version}`;
+    document.body.appendChild(script2);
 
-        // Your chain configuration
-        const chains = [
-            {
-                rpcUrl: 'https://ethereum-sepolia.publicnode.com',
-                contractAddress: '0xF9cF9c918b4DD16e5906FF70Ba58228E3d784736',
-                startBlock: 8594107,
-                chainId: 11155111,
-            },
-        ];
+    const chains = [
+        {
+            rpcUrl: 'https://ethereum-sepolia.publicnode.com',
+            contractAddress: '0xF9cF9c918b4DD16e5906FF70Ba58228E3d784736',
+            startBlock: 8594107,
+            chainId: 11155111,
+        },
+    ];
 
-        // Wait for the DOM and scripts to be ready, then run the app
-        window.addEventListener('DOMContentLoaded', () => {
-            const ready = setInterval(() => {
-                if (window.tweetFetcher && window.ethers) {
-                    clearInterval(ready);
-                    tweetFetcher.init();
-                    tweetFetcher.loadCachedTweets();
-                    tweetFetcher.fetchAndUpdateTweets(chains);
-                    setInterval(() => tweetFetcher.fetchAndUpdateTweets(chains), 60000);
+    window.addEventListener('DOMContentLoaded', () => {
+        const ready = setInterval(() => {
+            if (window.tweetFetcher && window.ethers) {
+                clearInterval(ready);
+                
+                // --- CHANGE 6: ADDED NEW MENU JAVASCRIPT ---
+                const menuToggleBtn = document.getElementById('menu-toggle-btn');
+                const sidebar = document.getElementById('sidebar');
+                const overlay = document.getElementById('sidebar-overlay');
+
+                function closeMenu() {
+                    sidebar.classList.remove('is-open');
+                    document.body.classList.remove('menu-is-open');
                 }
-            }, 100);
-        });
-    </script>
+
+                function openMenu() {
+                    sidebar.classList.add('is-open');
+                    document.body.classList.add('menu-is-open');
+                }
+                
+                menuToggleBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (sidebar.classList.contains('is-open')) {
+                        closeMenu();
+                    } else {
+                        openMenu();
+                    }
+                });
+
+                overlay.addEventListener('click', closeMenu);
+                // --- END OF NEW MENU JAVASCRIPT ---
+                
+                tweetFetcher.init();
+                tweetFetcher.loadCachedTweets();
+                tweetFetcher.fetchAndUpdateTweets(chains);
+                setInterval(() => tweetFetcher.fetchAndUpdateTweets(chains), 60000);
+            }
+        }, 100);
+    });
+</script>
 </body>
 </html>
