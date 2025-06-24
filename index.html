@@ -1,61 +1,58 @@
 <!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>fullofcoins</title>
-    <link rel="icon" href="favicon.png" type="image/png" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>fullofcoins</title>
+  <link rel="icon" href="favicon.png" type="image/png" />
 </head>
 <body>
-    <div class="layout-wrapper">
-        <!-- Left Panel / Sidebar -->
-        <div class="sidebar" id="sidebar">
-            <h2>fullofcoins</h2>
-            <ul>
-                <li>🏠 Home</li>
-                <li>🧾 Explore</li>
-                <li>👤 Profile</li>
-                <li><button id="connectBtn">Connect Wallet</button></li>
-            </ul>
-            <div id="walletAddress" class="wallet-address"></div>
-        </div>
-
-        <!-- The single overlay is shared by both menus -->
-        <div class="sidebar-overlay" id="sidebar-overlay"></div>
-
-        <!-- Tweet Feed -->
-        <div class="main-feed">
-            <div class="feed-header">
-                <button id="menu-toggle-btn" class="menu-toggle">☰</button>
-                <h2>Decentralized Tweets</h2>
-                <button id="right-panel-toggle-btn" class="menu-toggle">⋮</button>
-            </div>
-            <div id="tweetList">
-                <!-- Tweets will go here -->
-            </div>
-        </div>
-
-        <!-- Right Panel -->
-        <div class="right-panel" id="right-panel">
-            <h3>Coming Soon</h3>
-            <p>Analytics, Suggestions, or Ads</p>
-        </div>
+  <div class="layout-wrapper">
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+      <h2>fullofcoins</h2>
+      <ul>
+        <li>🏠 Home</li>
+        <li>🧾 Explore</li>
+        <li>👤 Profile</li>
+        <li><button id="connectBtn">Connect Wallet</button></li>
+      </ul>
+      <div id="walletAddress" class="wallet-address"></div>
     </div>
 
-    <!-- Wallet Modal, Toast, etc. remain the same -->
-    <div id="walletModal" class="modal">
-        <div class="modal-content">
-            <h3>Connect Wallet</h3>
-            <button id="metamaskBtn">🦊 Connect with MetaMask</button>
-            <button id="closeModal" class="close-btn">Cancel</button>
-        </div>
-    </div>
-    <div id="toast" class="toast"></div>
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
 
-    <!-- Scripts -->
-    <script src="https://unpkg.com/ethers@5.7.2/dist/ethers.umd.min.js"></script>
-    <script>
-    // --- The Final Initialization ---
+    <!-- Main Feed -->
+    <div class="main-feed">
+      <div class="feed-header">
+        <button id="menu-toggle-btn" class="menu-toggle">☰</button>
+        <h2>Decentralized Tweets</h2>
+        <button id="right-panel-toggle-btn" class="menu-toggle">⋮</button>
+      </div>
+      <div id="tweetList"></div>
+    </div>
+
+    <!-- Right Panel -->
+    <div class="right-panel" id="right-panel">
+      <h3>Coming Soon</h3>
+      <p>Analytics, Suggestions, or Ads</p>
+    </div>
+  </div>
+
+  <!-- Wallet Modal -->
+  <div id="walletModal" class="modal">
+    <div class="modal-content">
+      <h3>Connect Wallet</h3>
+      <button id="metamaskBtn">🦊 Connect with MetaMask</button>
+      <button id="closeModal" class="close-btn">Cancel</button>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <!-- Scripts -->
+  <script src="https://unpkg.com/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+  <script>
     const version = Date.now();
     const link = document.createElement('link');
     link.rel = 'stylesheet';
@@ -68,74 +65,76 @@
     script2.src = `tweetFetcher.js?v=${version}`;
     document.body.appendChild(script2);
 
-    const chains = [
-        {
-            rpcUrl: 'https://ethereum-sepolia.publicnode.com',
-            contractAddress: '0xF9cF9c918b4DD16e5906FF70Ba58228E3d784736',
-            startBlock: 8594107,
-            chainId: 11155111,
-        },
-    ];
+    const chains = [{
+      rpcUrl: 'https://ethereum-sepolia.publicnode.com',
+      contractAddress: '0xF9cF9c918b4DD16e5906FF70Ba58228E3d784736',
+      startBlock: 8594107,
+      chainId: 11155111,
+    }];
 
     window.addEventListener('DOMContentLoaded', () => {
-        const ready = setInterval(() => {
-            if (window.tweetFetcher && window.ethers) {
-                clearInterval(ready);
-                
-                // --- VERIFIED JAVASCRIPT FOR BOTH MENUS ---
-                const leftToggleBtn = document.getElementById('menu-toggle-btn');
-                const rightToggleBtn = document.getElementById('right-panel-toggle-btn');
-                const leftPanel = document.getElementById('sidebar');
-                const rightPanel = document.getElementById('right-panel');
-                const overlay = document.getElementById('sidebar-overlay');
+      const ready = setInterval(() => {
+        if (window.tweetFetcher && window.ethers) {
+          clearInterval(ready);
 
-                // Function to close both panels and the overlay
-                function closeAllPanels() {
-                    leftPanel.classList.remove('is-open');
-                    rightPanel.classList.remove('is-open');
-                    document.body.classList.remove('menu-is-open');
-                }
+          const leftToggleBtn = document.getElementById('menu-toggle-btn');
+          const rightToggleBtn = document.getElementById('right-panel-toggle-btn');
+          const leftPanel = document.getElementById('sidebar');
+          const rightPanel = document.getElementById('right-panel');
+          const overlay = document.getElementById('sidebar-overlay');
 
-                // Event listener for the left (main menu) button
-                if (leftToggleBtn) {
-                    leftToggleBtn.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        const isAlreadyOpen = leftPanel.classList.contains('is-open');
-                        closeAllPanels(); // Close everything first
-                        if (!isAlreadyOpen) {
-                            leftPanel.classList.add('is-open');
-                            document.body.classList.add('menu-is-open');
-                        }
-                    });
-                }
+          function closeAllPanels() {
+            leftPanel.classList.remove('is-open');
+            rightPanel.classList.remove('is-open');
+            document.body.classList.remove('menu-is-open');
+          }
 
-                // Event listener for the right panel button
-                if (rightToggleBtn) {
-                    rightToggleBtn.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        const isAlreadyOpen = rightPanel.classList.contains('is-open');
-                        closeAllPanels(); // Close everything first
-                        if (!isAlreadyOpen) {
-                            rightPanel.classList.add('is-open');
-                            document.body.classList.add('menu-is-open');
-                        }
-                    });
-                }
+          if (leftToggleBtn) {
+            leftToggleBtn.addEventListener('click', (e) => {
+              e.stopPropagation();
+              const isAlreadyOpen = leftPanel.classList.contains('is-open');
+              closeAllPanels();
+              if (!isAlreadyOpen) {
+                leftPanel.classList.add('is-open');
+                document.body.classList.add('menu-is-open');
+              }
+            });
+          }
 
-                // Overlay click closes everything
-                if (overlay) {
-                    overlay.addEventListener('click', closeAllPanels);
-                }
-                // --- END OF VERIFIED JAVASCRIPT ---
+          if (rightToggleBtn) {
+            rightToggleBtn.addEventListener('click', (e) => {
+              e.stopPropagation();
+              const isAlreadyOpen = rightPanel.classList.contains('is-open');
+              closeAllPanels();
+              if (!isAlreadyOpen) {
+                rightPanel.classList.add('is-open');
+                document.body.classList.add('menu-is-open');
+              }
+            });
+          }
 
-                // Original TweetFetcher initialization (must be here)
-                tweetFetcher.init();
-                tweetFetcher.loadCachedTweets();
-                tweetFetcher.fetchAndUpdateTweets(chains);
-                setInterval(() => tweetFetcher.fetchAndUpdateTweets(chains), 60000);
-            }
-        }, 100);
+          if (overlay) {
+            overlay.addEventListener('click', closeAllPanels);
+          }
+
+          // Wallet Modal open/close
+          document.getElementById('connectBtn').addEventListener('click', () => {
+            document.getElementById('walletModal').style.display = 'flex';
+            document.body.classList.add('modal-open');
+          });
+
+          document.getElementById('closeModal').addEventListener('click', () => {
+            document.getElementById('walletModal').style.display = 'none';
+            document.body.classList.remove('modal-open');
+          });
+
+          tweetFetcher.init();
+          tweetFetcher.loadCachedTweets();
+          tweetFetcher.fetchAndUpdateTweets(chains);
+          setInterval(() => tweetFetcher.fetchAndUpdateTweets(chains), 60000);
+        }
+      }, 100);
     });
-</script>
+  </script>
 </body>
 </html>
