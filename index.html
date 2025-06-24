@@ -1,111 +1,106 @@
 <!doctype html>
 <html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>fullofcoins</title>
-        <link rel="icon" href="favicon.png" type="image/png" />
-    </head>
-    <body>
-        <div class="layout-wrapper">
-            <!-- Sidebar Menu -->
-            <div class="sidebar">
-                <h2>fullofcoins</h2>
-                <ul>
-                    <li>🏠 Home</li>
-                    <li>🧾 Explore</li>
-                    <li>👤 Profile</li>
-                    <li><button id="connectBtn">Connect Wallet</button></li>
-                </ul>
-                <div id="walletAddress" class="wallet-address"></div>
-            </div>
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>fullofcoins</title>
+    <link rel="icon" href="favicon.png" type="image/png" />
+</head>
+<body>
+    <div class="layout-wrapper">
+        <!-- Sidebar Menu -->
+        <div class="sidebar">
+            <h2>fullofcoins</h2>
+            <ul>
+                <li>🏠 Home</li>
+                <li>🧾 Explore</li>
+                <li>👤 Profile</li>
+                <li><button id="connectBtn">Connect Wallet</button></li>
+            </ul>
+            <div id="walletAddress" class="wallet-address"></div>
+        </div>
 
-            <!-- Tweet Feed -->
-            <div class="main-feed">
-                <h2>Decentralized Tweets</h2>
-                <div id="tweetList">
-                    <!-- Tweets will go here -->
-                </div>
-            </div>
-
-            <!-- Right Panel -->
-            <div class="right-panel">
-                <h3>Coming Soon</h3>
-                <p>Analytics, Suggestions, or Ads</p>
+        <!-- Tweet Feed -->
+        <div class="main-feed">
+            <h2>Decentralized Tweets</h2>
+            <div id="tweetList">
+                <!-- Tweets will go here -->
             </div>
         </div>
 
-        <!-- Wallet Modal   -->
-        <div id="walletModal" class="modal">
-            <div class="modal-content">
-                <h3>Connect Wallet</h3>
-                <button id="metamaskBtn">🦊 Connect with MetaMask</button>
-                <button id="closeModal" class="close-btn">Cancel</button>
-            </div>
+        <!-- Right Panel -->
+        <div class="right-panel">
+            <h3>Coming Soon</h3>
+            <p>Analytics, Suggestions, or Ads</p>
         </div>
+    </div>
 
-        <!-- Toast -->
-        <div id="toast" class="toast"></div>
+    <!-- Wallet Modal   -->
+    <div id="walletModal" class="modal">
+        <div class="modal-content">
+            <h3>Connect Wallet</h3>
+            <button id="metamaskBtn">🦊 Connect with MetaMask</button>
+            <button id="closeModal" class="close-btn">Cancel</button>
+        </div>
+    </div>
 
-        <!-- Scripts -->
-        <script src="https://unpkg.com/ethers@5.7.2/dist/ethers.umd.min.js"></script>
-        <script>
-            const version = Date.now() // Or use '1.0.0' in production
+    <!-- Toast -->
+    <div id="toast" class="toast"></div>
 
-            const link = document.createElement('link')
-            link.rel = 'stylesheet'
-            link.href = `style.css?v=${version}`
-            document.head.appendChild(link)
+    <!-- Scripts -->
+    <script src="https://unpkg.com/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+    <script>
+        const version = Date.now(); // Or use '1.0.0' in production
 
-            const script1 = document.createElement('script')
-            script1.src = `app.js?v=${version}`
-            document.body.appendChild(script1)
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = `style.css?v=${version}`;
+        document.head.appendChild(link);
 
-            const script2 = document.createElement('script')
-            script2.src = `tweetFetcher.js?v=${version}`
-            document.body.appendChild(script2)
+        const script1 = document.createElement('script');
+        script1.src = `app.js?v=${version}`;
+        document.body.appendChild(script1);
 
-            const chains = [
-                {
-                    rpcUrl: 'https://ethereum-sepolia.publicnode.com',
-                    contractAddress: '0xF9cF9c918b4DD16e5906FF70Ba58228E3d784736',
-                    startBlock: 8594107,
-                    chainId: 11155111,
-                },
-                // Add more chains here
-            ]
+        const script2 = document.createElement('script');
+        script2.src = `tweetFetcher.js?v=${version}`;
+        document.body.appendChild(script2);
 
-window.addEventListener('DOMContentLoaded', () => {
-    const ready = setInterval(() => {
-        if (window.tweetFetcher) {
-            clearInterval(ready);
-            tweetFetcher.loadCachedTweets(); // Show immediately
-            tweetFetcher.fetchAndUpdateTweets(chains); // Start scan
-            setInterval(() => tweetFetcher.fetchAndUpdateTweets(chains), 60000); // Auto-refresh
+        const chains = [
+            {
+                rpcUrl: 'https://ethereum-sepolia.publicnode.com',
+                contractAddress: '0xF9cF9c918b4DD16e5906FF70Ba58228E3d784736',
+                startBlock: 8594107,
+                chainId: 11155111,
+            },
+            // Add more chains here
+        ];
 
-            // ✅ Add scroll listener here
-            const feed = document.querySelector('.main-feed')
-            if (feed) {
-                let scrollTimeout = null
-                feed.addEventListener('scroll', () => {
-                    if (scrollTimeout) return
+        window.addEventListener('DOMContentLoaded', () => {
+            const ready = setInterval(() => {
+                if (window.tweetFetcher) {
+                    clearInterval(ready);
+                    tweetFetcher.loadCachedTweets(); // Show immediately
+                    tweetFetcher.fetchAndUpdateTweets(chains); // Start scan
+                    setInterval(() => tweetFetcher.fetchAndUpdateTweets(chains), 60000); // Auto-refresh
 
-                    scrollTimeout = setTimeout(() => {
-                        scrollTimeout = null
-                        const scrollY = feed.scrollTop + feed.clientHeight
-                        const threshold = feed.scrollHeight - 100
+                    // Infinite scroll on window scroll event:
+                    window.addEventListener('scroll', () => {
+                        const feed = document.querySelector('.main-feed');
+                        if (!feed) return;
 
-                        if (scrollY >= threshold) {
+                        const scrollY = window.scrollY + window.innerHeight;
+                        const feedBottom = feed.offsetTop + feed.offsetHeight;
+                        const threshold = 100; // px before bottom
+
+                        if (scrollY >= feedBottom - threshold) {
                             if (window.tweetFetcher?.renderNextBatch) {
-                                tweetFetcher.renderNextBatch()
+                                tweetFetcher.renderNextBatch();
                             }
                         }
-                    }, 100)
-                })
-            }
-        }
-    }, 100)
-})      
- </script>
-    </body>
+                    });
+                }
+            }, 100);
+        });
+    </script>
+</body>
 </html>
