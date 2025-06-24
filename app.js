@@ -11,7 +11,6 @@ let connectedAddress = null
 if (window.ethereum) {
     window.ethereum.on('accountsChanged', async (accounts) => {
         if (accounts.length > 0) {
-            // Wallet was just unlocked or changed — connect automatically
             try {
                 provider = new ethers.providers.Web3Provider(window.ethereum)
                 signer = provider.getSigner()
@@ -20,18 +19,17 @@ if (window.ethereum) {
                 localStorage.setItem('walletConnected', 'true')
                 updateUIAfterConnect(connectedAddress)
                 walletModal.style.display = 'none'
+                document.body.classList.remove('modal-open') // FIX
                 showToast('Wallet connected ✅', true)
             } catch (err) {
                 console.error('Error during accountsChanged connect:', err)
                 showToast('Failed to connect wallet ❌', false)
             }
         } else {
-            // Wallet was disconnected
             logoutWallet()
         }
     })
 
-    // Add this new event listener for the connect event
     window.ethereum.on('connect', async () => {
         try {
             provider = new ethers.providers.Web3Provider(window.ethereum)
@@ -43,6 +41,7 @@ if (window.ethereum) {
                 localStorage.setItem('walletConnected', 'true')
                 updateUIAfterConnect(connectedAddress)
                 walletModal.style.display = 'none'
+                document.body.classList.remove('modal-open') // FIX
                 showToast('Wallet connected ✅', true)
             }
         } catch (err) {
@@ -51,7 +50,6 @@ if (window.ethereum) {
     })
 }
 
-// Load on page refresh
 window.addEventListener('DOMContentLoaded', async () => {
     if (window.ethereum && localStorage.getItem('walletConnected') === 'true') {
         try {
@@ -69,37 +67,37 @@ window.addEventListener('DOMContentLoaded', async () => {
     }
 })
 
-// Show modal on connect button click
+// Handle Connect Wallet button
 connectBtn.addEventListener('click', () => {
     if (connectedAddress) {
         logoutWallet()
+        document.body.classList.remove('modal-open') // Defensive cleanup
     } else {
         walletModal.style.display = 'flex'
+        document.body.classList.add('modal-open')
     }
 })
 
-// Close modal
+// Handle Close Modal button
 closeModal.addEventListener('click', () => {
     walletModal.style.display = 'none'
+    document.body.classList.remove('modal-open')
 })
 
-// Connect with MetaMask (no network switching)
+// Handle MetaMask connect
 metamaskBtn.addEventListener('click', async () => {
     if (connectedAddress) {
         walletModal.style.display = 'none'
+        document.body.classList.remove('modal-open') // FIX
         return
     }
 
-    // Check if MetaMask is installed (desktop) or if it's a mobile browser
     if (typeof window.ethereum === 'undefined') {
-        // Check if user is on a mobile device
         const isMobile =
             /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
                 navigator.userAgent
             )
-
         if (isMobile) {
-            // Try to open MetaMask mobile app or redirect to install page
             window.location.href =
                 'https://metamask.app.link/dapp/fullofcoins.com'
         } else {
@@ -120,6 +118,7 @@ metamaskBtn.addEventListener('click', async () => {
         localStorage.setItem('walletConnected', 'true')
         updateUIAfterConnect(connectedAddress)
         walletModal.style.display = 'none'
+        document.body.classList.remove('modal-open') // FIX
         showToast('Wallet connected ✅', true)
     } catch (err) {
         console.error('Wallet connection error:', err)
@@ -137,6 +136,7 @@ function logoutWallet() {
     connectBtn.textContent = 'Connect Wallet'
     walletAddressDiv.textContent = ''
     localStorage.removeItem('walletConnected')
+    document.body.classList.remove('modal-open') // Just in case modal is open
     showToast('Wallet disconnected 🔌', false)
 }
 
