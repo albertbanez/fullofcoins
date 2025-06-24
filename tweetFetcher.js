@@ -5,7 +5,7 @@ window.tweetFetcher = (() => {
 
     const cacheKey = 'cachedTweets'
     let currentTweetMap = {}
-    let newTweetsQueue = []
+    let allSortedTweets = []
 
     function loadCache() {
         const raw = localStorage.getItem(cacheKey)
@@ -16,7 +16,6 @@ window.tweetFetcher = (() => {
         const maxTotalTweets = 500
         const allTweets = []
 
-        // Flatten all tweets across chains and tag them with their chainId
         for (const chainId in data) {
             const tweets = data[chainId].tweets || []
             tweets.forEach((tweet) => {
@@ -24,13 +23,9 @@ window.tweetFetcher = (() => {
             })
         }
 
-        // Sort all tweets globally (latest first)
         allTweets.sort(compareTweets)
-
-        // Trim to the newest maxTotalTweets
         const trimmed = allTweets.slice(0, maxTotalTweets)
 
-        // Rebuild grouped data by chainId
         const grouped = {}
         trimmed.forEach((tweet) => {
             const cid = tweet._chainId
@@ -101,7 +96,6 @@ window.tweetFetcher = (() => {
                     const parsed = contract.interface.parseLog(log)
                     const { id, author, content, timestamp, chainId } =
                         parsed.args
-
                     return {
                         id: id.toString(),
                         author,
@@ -126,6 +120,31 @@ window.tweetFetcher = (() => {
         return { tweets: allTweets, lastScannedBlock: finalScannedBlock }
     }
 
+    function renderTweets(tweets) {
+        const tweetList = document.getElementById('tweetList')
+        tweetList.innerHTML = ''
+        currentTweetMap = {}
+
+        allSortedTweets = tweets.sort(compareTweets)
+
+        if (allSortedTweets.length === 0) {
+            tweetList.innerHTML = `<p style="opacity: 0.6;">No tweets found on-chain yet.</p>`
+            return
+        }
+
+        allSortedTweets.forEach((tweet) => {
+            const div = document.createElement('div')
+            div.className = 'tweet'
+            div.innerHTML = `
+        <strong>${tweet.author}</strong>
+        <p>${tweet.content}</p>
+        <small>⛓ Chain: ${tweet.chainId} • 🕒 ${new Date(tweet.timestamp * 1000).toLocaleString()}</small>
+      `
+            tweetList.appendChild(div)
+            currentTweetMap[`${tweet.chainId}-${tweet.id}`] = true
+        })
+    }
+
     function loadCachedTweets() {
         const cache = loadCache()
         const combined = []
@@ -136,7 +155,7 @@ window.tweetFetcher = (() => {
             }
         })
 
-        const sorted = combined.sort(compareTweets) // newest on top
+        const sorted = combined.sort(compareTweets)
         renderTweets(sorted)
     }
 
@@ -178,82 +197,30 @@ window.tweetFetcher = (() => {
         }, {})
         const sorted = Object.values(finalMap).sort(compareTweets)
 
-        const newOnly = sorted.filter(
-            (tweet) => !currentTweetMap[`${tweet.chainId}-${tweet.id}`]
-        )
-        if (newOnly.length > 0) {
-            newTweetsQueue = newOnly
-            showNewPostsBanner(newOnly.length)
-        }
-    }
-
-    function showNewPostsBanner(count) {
-        const banner = document.getElementById('newPostsBanner')
-        banner.innerHTML = `<button onclick="tweetFetcher.showNewTweets()">🔵 Show ${count} new post${count > 1 ? 's' : ''}</button>`
-        banner.style.display = 'block'
-    }
-
-    function hideNewPostsBanner() {
-        const banner = document.getElementById('newPostsBanner')
-        banner.innerHTML = ''
-        banner.style.display = 'none'
-    }
-
-    function showNewTweets() {
-        const tweetList = document.getElementById('tweetList')
-
-        // Sort newest first (descending), then insert in reverse order to keep newest on top
-        newTweetsQueue.sort(compareTweets)
-        for (let i = newTweetsQueue.length - 1; i >= 0; i--) {
-            const tweet = newTweetsQueue[i]
-            const div = document.createElement('div')
-            div.className = 'tweet'
-            div.innerHTML = `
-      <strong>${tweet.author}</strong>
-      <p>${tweet.content}</p>
-      <small>⛓ Chain: ${tweet.chainId} • 🕒 ${new Date(tweet.timestamp * 1000).toLocaleString()}</small>
-    `
-            tweetList.insertBefore(div, tweetList.firstChild)
-            currentTweetMap[`${tweet.chainId}-${tweet.id}`] = true
-        }
-
-        newTweetsQueue = []
-        hideNewPostsBanner()
-    }
-
-    function renderTweets(tweets) {
-        const tweetList = document.getElementById('tweetList')
-        tweetList.innerHTML = ''
-        currentTweetMap = {}
-
-        if (!tweets || tweets.length === 0) {
-            tweetList.innerHTML = `<p style="opacity: 0.6;">No tweets found on-chain yet.</p>`
-            return
-        }
-
-        tweets.forEach((tweet) => {
-            const div = document.createElement('div')
-            div.className = 'tweet'
-            div.innerHTML = `
-        <strong>${tweet.author}</strong>
-        <p>${tweet.content}</p>
-        <small>⛓ Chain: ${tweet.chainId} • 🕒 ${new Date(tweet.timestamp * 1000).toLocaleString()}</small>
-      `
-            tweetList.appendChild(div)
-            currentTweetMap[`${tweet.chainId}-${tweet.id}`] = true
-        })
+        renderTweets(sorted)
     }
 
     function compareTweets(a, b) {
+        const aId = parseInt(a.id)
+        const bId = parseInt(b.id)
+
         if (b.blockNumber !== a.blockNumber)
             return b.blockNumber - a.blockNumber
-        if (b.id !== a.id) return parseInt(b.id) - parseInt(a.id)
+        if (bId !== aId) return bId - aId
         return b.timestamp - a.timestamp
+    }
+
+    function showWarningToast(msg) {
+        const toast = document.getElementById('toast')
+        if (!toast) return
+        toast.textContent = msg
+        toast.style.backgroundColor = '#ffc107'
+        toast.classList.add('show')
+        setTimeout(() => toast.classList.remove('show'), 4000)
     }
 
     return {
         loadCachedTweets,
         fetchAndUpdateTweets,
-        showNewTweets,
     }
 })()
