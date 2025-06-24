@@ -11,7 +11,7 @@ html, body {
     max-width: 1000px;
     margin: 0 auto;
     display: flex;
-    align-items: flex-start;
+    align-items: flex-start; /* Aligns columns to the top */
     border-left: 1px solid #ddd;
     border-right: 1px solid #ddd;
 }
@@ -32,7 +32,7 @@ html, body {
 /* Main Feed (2nd Column) */
 .main-feed {
     flex: 2;
-    min-width: 0;
+    min-width: 0; /* Prevents flexbox overflow issues */
     background-color: #e6ecf0;
 }
 
@@ -63,77 +63,39 @@ html, body {
 #tweetList {
     padding: 20px;
 }
-
-.tweet {
-    background: white;
-    padding: 15px;
-    margin-bottom: 10px;
-    border-radius: 10px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-.tweet strong {
-    display: block;
-    word-break: break-all;
-    margin-bottom: 5px;
-}
-
-.tweet p {
-    margin: 0 0 10px 0;
-}
-
-.tweet small {
-    font-size: 0.8em;
-    color: #657786;
-}
+.tweet { background: white; padding: 15px; margin-bottom: 10px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); }
+.tweet strong { display: block; word-break: break-all; margin-bottom: 5px; }
+.tweet p { margin: 0 0 10px 0; }
+.tweet small { font-size: 0.8em; color: #657786; }
 
 /* Sidebar Elements */
-.sidebar h2 {
-    margin-bottom: 20px;
-    color: #1da1f2;
-}
+.sidebar h2 { margin-bottom: 20px; color: #1da1f2; }
+.sidebar ul { list-style: none; padding: 0; }
+.sidebar li { padding: 10px 0; cursor: pointer; }
+#connectBtn { padding: 10px 15px; background-color: #1da1f2; color: white; border: none; border-radius: 5px; cursor: pointer; }
+.wallet-address { margin-top: 10px; font-size: 0.9em; word-break: break-word; color: #333; }
 
-.sidebar ul {
-    list-style: none;
-    padding: 0;
-}
+/* Other Styles (Modal, Toast, Banner) */
+.modal { display: none; position: fixed; z-index: 99; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; }
+.modal-content { background: white; padding: 20px 30px; border-radius: 8px; text-align: center; max-width: 300px; }
+.modal-content button { margin-top: 10px; padding: 10px; width: 100%; font-size: 1em; }
+.close-btn { background-color: #ccc; }
+.toast { position: fixed; bottom: 30px; right: 30px; background-color: #333; color: white; padding: 12px 20px; border-radius: 6px; font-size: 14px; opacity: 0; transition: opacity 0.3s ease, transform 0.3s ease; transform: translateY(20px); z-index: 9999; }
+.toast.show { opacity: 1; transform: translateY(0); }
+#newPostsBanner { text-align: center; padding: 10px; position: sticky; top: 0; background: rgba(229, 236, 240, 0.95); z-index: 20; }
+#newPostsBanner button { background: #007bff; color: white; border: none; padding: 6px 14px; border-radius: 6px; font-weight: bold; cursor: pointer; }
+#newPostsBanner button:hover { background: #0056b3; }
 
-.sidebar li {
-    padding: 10px 0;
-    cursor: pointer;
-}
 
-#connectBtn {
-    padding: 10px 15px;
-    background-color: #1da1f2;
-    color: white;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-}
-
-.wallet-address {
-    margin-top: 10px;
-    font-size: 0.9em;
-    word-break: break-word;
-    color: #333;
-}
-
-/* Other Styles (Modal, Toast, etc.) */
-/* ... (all your existing modal, toast, banner styles) ... */
-.modal, .toast, #newPostsBanner { /* Keep all your other styles here */ }
-/* (Copied from your original file for completeness) */
-.modal{display:none;position:fixed;z-index:99;left:0;top:0;width:100%;height:100%;background:rgba(0,0,0,0.5);justify-content:center;align-items:center}.modal-content{background:white;padding:20px 30px;border-radius:8px;text-align:center;max-width:300px}.modal-content button{margin-top:10px;padding:10px;width:100%;font-size:1em}.close-btn{background-color:#ccc}.toast{position:fixed;bottom:30px;right:30px;background-color:#333;color:white;padding:12px 20px;border-radius:6px;font-size:14px;opacity:0;transition:opacity .3s ease,transform .3s ease;transform:translateY(20px);z-index:9999}.toast.show{opacity:1;transform:translateY(0)}#newPostsBanner{text-align:center;padding:10px;position:sticky;top:0;background:rgba(229,236,240,0.95);z-index:20}#newPostsBanner button{background:#007bff;color:white;border:none;padding:6px 14px;border-radius:6px;font-weight:bold;cursor:pointer}#newPostsBanner button:hover{background:#0056b3}
-
-/* --- NEW: MOBILE RESPONSIVE STYLES --- */
+/* --- MOBILE RESPONSIVE STYLES --- */
 
 .menu-toggle {
-    display: none; /* Hidden on desktop */
+    display: none;
     font-size: 24px;
     background: none;
     border: none;
     cursor: pointer;
-    padding: 0 15px;
+    flex: 0 0 44px;
     color: #1da1f2;
 }
 
@@ -144,7 +106,7 @@ html, body {
     width: 100%;
     height: 100%;
     background: rgba(0, 0, 0, 0.5);
-    z-index: 998; /* Below the sidebar, above the content */
+    z-index: 998;
     opacity: 0;
     visibility: hidden;
     transition: opacity 0.3s ease, visibility 0.3s ease;
@@ -161,12 +123,9 @@ body.menu-is-open .sidebar-overlay {
         border-right: none;
     }
     
-    .right-panel {
-        display: none;
-    }
-
     .feed-header {
         display: flex;
+        justify-content: space-between;
         align-items: center;
         background: white;
         border-bottom: 1px solid #ddd;
@@ -180,7 +139,8 @@ body.menu-is-open .sidebar-overlay {
         border-bottom: none;
         margin: 0;
         flex-grow: 1;
-        padding: 15px 10px;
+        text-align: center;
+        padding: 15px 0;
     }
 
     .menu-toggle {
@@ -201,6 +161,24 @@ body.menu-is-open .sidebar-overlay {
     }
 
     .sidebar.is-open {
+        transform: translateX(0);
+    }
+    
+    .right-panel {
+        position: fixed;
+        top: 0;
+        right: 0;
+        height: 100%;
+        width: 250px;
+        max-width: 80%;
+        z-index: 999;
+        transform: translateX(100%);
+        transition: transform 0.3s ease-in-out;
+        border-left: 1px solid #ddd;
+        background-color: #fff;
+    }
+
+    .right-panel.is-open {
         transform: translateX(0);
     }
     

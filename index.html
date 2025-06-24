@@ -2,14 +2,13 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8" />
-    <!-- CHANGE 1: Correct viewport for responsive design -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>fullofcoins</title>
     <link rel="icon" href="favicon.png" type="image/png" />
 </head>
 <body>
     <div class="layout-wrapper">
-        <!-- CHANGE 2: Added id="sidebar" for easier JS targeting -->
+        <!-- Left Panel / Sidebar -->
         <div class="sidebar" id="sidebar">
             <h2>fullofcoins</h2>
             <ul>
@@ -21,16 +20,15 @@
             <div id="walletAddress" class="wallet-address"></div>
         </div>
 
-        <!-- CHANGE 3: New overlay to dim background when menu is open -->
+        <!-- The single overlay is shared by both menus -->
         <div class="sidebar-overlay" id="sidebar-overlay"></div>
 
         <!-- Tweet Feed -->
         <div class="main-feed">
-            <!-- CHANGE 4: New wrapper for header to align button and title -->
             <div class="feed-header">
-                <!-- CHANGE 5: New "hamburger" menu button -->
                 <button id="menu-toggle-btn" class="menu-toggle">☰</button>
                 <h2>Decentralized Tweets</h2>
+                <button id="right-panel-toggle-btn" class="menu-toggle">⋮</button>
             </div>
             <div id="tweetList">
                 <!-- Tweets will go here -->
@@ -38,13 +36,13 @@
         </div>
 
         <!-- Right Panel -->
-        <div class="right-panel">
+        <div class="right-panel" id="right-panel">
             <h3>Coming Soon</h3>
             <p>Analytics, Suggestions, or Ads</p>
         </div>
     </div>
 
-    <!-- Wallet Modal   -->
+    <!-- Wallet Modal, Toast, etc. remain the same -->
     <div id="walletModal" class="modal">
         <div class="modal-content">
             <h3>Connect Wallet</h3>
@@ -52,8 +50,6 @@
             <button id="closeModal" class="close-btn">Cancel</button>
         </div>
     </div>
-
-    <!-- Toast -->
     <div id="toast" class="toast"></div>
 
     <!-- Scripts -->
@@ -86,33 +82,53 @@
             if (window.tweetFetcher && window.ethers) {
                 clearInterval(ready);
                 
-                // --- CHANGE 6: ADDED NEW MENU JAVASCRIPT ---
-                const menuToggleBtn = document.getElementById('menu-toggle-btn');
-                const sidebar = document.getElementById('sidebar');
+                // --- VERIFIED JAVASCRIPT FOR BOTH MENUS ---
+                const leftToggleBtn = document.getElementById('menu-toggle-btn');
+                const rightToggleBtn = document.getElementById('right-panel-toggle-btn');
+                const leftPanel = document.getElementById('sidebar');
+                const rightPanel = document.getElementById('right-panel');
                 const overlay = document.getElementById('sidebar-overlay');
 
-                function closeMenu() {
-                    sidebar.classList.remove('is-open');
+                // Function to close both panels and the overlay
+                function closeAllPanels() {
+                    leftPanel.classList.remove('is-open');
+                    rightPanel.classList.remove('is-open');
                     document.body.classList.remove('menu-is-open');
                 }
 
-                function openMenu() {
-                    sidebar.classList.add('is-open');
-                    document.body.classList.add('menu-is-open');
+                // Event listener for the left (main menu) button
+                if (leftToggleBtn) {
+                    leftToggleBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const isAlreadyOpen = leftPanel.classList.contains('is-open');
+                        closeAllPanels(); // Close everything first
+                        if (!isAlreadyOpen) {
+                            leftPanel.classList.add('is-open');
+                            document.body.classList.add('menu-is-open');
+                        }
+                    });
                 }
-                
-                menuToggleBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    if (sidebar.classList.contains('is-open')) {
-                        closeMenu();
-                    } else {
-                        openMenu();
-                    }
-                });
 
-                overlay.addEventListener('click', closeMenu);
-                // --- END OF NEW MENU JAVASCRIPT ---
-                
+                // Event listener for the right panel button
+                if (rightToggleBtn) {
+                    rightToggleBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const isAlreadyOpen = rightPanel.classList.contains('is-open');
+                        closeAllPanels(); // Close everything first
+                        if (!isAlreadyOpen) {
+                            rightPanel.classList.add('is-open');
+                            document.body.classList.add('menu-is-open');
+                        }
+                    });
+                }
+
+                // Overlay click closes everything
+                if (overlay) {
+                    overlay.addEventListener('click', closeAllPanels);
+                }
+                // --- END OF VERIFIED JAVASCRIPT ---
+
+                // Original TweetFetcher initialization (must be here)
                 tweetFetcher.init();
                 tweetFetcher.loadCachedTweets();
                 tweetFetcher.fetchAndUpdateTweets(chains);
