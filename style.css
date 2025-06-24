@@ -198,3 +198,31 @@ html, body {
 #newPostsBanner button:hover {
     background: #0056b3;
 }
+
+/* --- Mobile Responsive Styles --- */
+
+/* This applies styles on screens 768px wide or smaller */
+@media (max-width: 768px) {
+
+    /* 1. Hide the left sidebar and the right panel completely. */
+    .sidebar,
+    .right-panel {
+        display: none;
+    }
+
+    /* 2. Remove the side borders from the main layout container for a cleaner look. */
+    .layout-wrapper {
+        border-left: none;
+        border-right: none;
+    }
+    
+    /* 3. (Optional but recommended) Adjust padding for a better edge-to-edge feel. */
+    #tweetList {
+        padding: 10px; /* A little less padding on mobile */
+    }
+
+    .main-feed h2 {
+        padding-left: 10px; /* Adjust header padding to match */
+        padding-right: 10px;
+    }
+}

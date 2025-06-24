@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=1000, initial-scale=1.0" />
+    <!-- THIS IS THE CRITICAL CHANGE -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>fullofcoins</title>
     <link rel="icon" href="favicon.png" type="image/png" />
 </head>
@@ -49,52 +50,42 @@
 
     <!-- Scripts -->
     <script src="https://unpkg.com/ethers@5.7.2/dist/ethers.umd.min.js"></script>
-  <script>
-    // --- The Final Initialization ---
+    <script>
+        // --- The Final Initialization ---
+        const version = Date.now();
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = `style.css?v=${version}`;
+        document.head.appendChild(link);
+        const script1 = document.createElement('script');
+        script1.src = `app.js?v=${version}`;
+        document.body.appendChild(script1);
+        const script2 = document.createElement('script');
+        script2.src = `tweetFetcher.js?v=${version}`;
+        document.body.appendChild(script2);
 
-    // Load scripts dynamically (your method is fine)
-    const version = Date.now();
-    const link = document.createElement('link');
-    link.rel = 'stylesheet';
-    link.href = `style.css?v=${version}`;
-    document.head.appendChild(link);
-    const script1 = document.createElement('script');
-    script1.src = `app.js?v=${version}`;
-    document.body.appendChild(script1);
-    const script2 = document.createElement('script');
-    script2.src = `tweetFetcher.js?v=${version}`;
-    document.body.appendChild(script2);
+        // Your chain configuration
+        const chains = [
+            {
+                rpcUrl: 'https://ethereum-sepolia.publicnode.com',
+                contractAddress: '0xF9cF9c918b4DD16e5906FF70Ba58228E3d784736',
+                startBlock: 8594107,
+                chainId: 11155111,
+            },
+        ];
 
-    // Your chain configuration
-    const chains = [
-        {
-            rpcUrl: 'https://ethereum-sepolia.publicnode.com',
-            contractAddress: '0xF9cF9c918b4DD16e5906FF70Ba58228E3d784736',
-            startBlock: 8594107,
-            chainId: 11155111,
-        },
-    ];
-
-    // Wait for the DOM and scripts to be ready, then run the app
-    window.addEventListener('DOMContentLoaded', () => {
-        const ready = setInterval(() => {
-            if (window.tweetFetcher && window.ethers) {
-                clearInterval(ready);
-                
-                // 1. Set up the infinite scroll listener
-                tweetFetcher.init();
-                
-                // 2. Load cached tweets and render the first batch
-                tweetFetcher.loadCachedTweets();
-                
-                // 3. Start scanning for new tweets in the background
-                tweetFetcher.fetchAndUpdateTweets(chains);
-                
-                // 4. Set up an auto-refresh every minute
-                setInterval(() => tweetFetcher.fetchAndUpdateTweets(chains), 60000);
-            }
-        }, 100);
-    });
-</script>
+        // Wait for the DOM and scripts to be ready, then run the app
+        window.addEventListener('DOMContentLoaded', () => {
+            const ready = setInterval(() => {
+                if (window.tweetFetcher && window.ethers) {
+                    clearInterval(ready);
+                    tweetFetcher.init();
+                    tweetFetcher.loadCachedTweets();
+                    tweetFetcher.fetchAndUpdateTweets(chains);
+                    setInterval(() => tweetFetcher.fetchAndUpdateTweets(chains), 60000);
+                }
+            }, 100);
+        });
+    </script>
 </body>
 </html>
