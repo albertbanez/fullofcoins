@@ -130,19 +130,6 @@
             overlay.addEventListener('click', closeAllPanels);
           }
 
-          // Connect Wallet button
-          connectBtn.addEventListener('click', () => {
-            closeAllPanels(); // auto-close panels first
-            walletModal.style.display = 'flex';
-            document.body.classList.add('modal-open');
-          });
-
-          // Close wallet modal
-          closeModal.addEventListener('click', () => {
-            walletModal.style.display = 'none';
-            document.body.classList.remove('modal-open');
-          });
-
           // Initialize tweet fetching
           tweetFetcher.init();
           tweetFetcher.loadCachedTweets();
