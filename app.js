@@ -20,7 +20,6 @@ if (window.ethereum) {
                 localStorage.setItem('walletConnected', 'true')
                 updateUIAfterConnect(connectedAddress)
                 walletModal.style.display = 'none'
-                fetchTweetsFromChain(connectedAddress)
                 showToast('Wallet connected ✅', true)
             } catch (err) {
                 console.error('Error during accountsChanged connect:', err)
@@ -44,7 +43,6 @@ if (window.ethereum) {
                 localStorage.setItem('walletConnected', 'true')
                 updateUIAfterConnect(connectedAddress)
                 walletModal.style.display = 'none'
-                fetchTweetsFromChain(connectedAddress)
                 showToast('Wallet connected ✅', true)
             }
         } catch (err) {
@@ -62,7 +60,6 @@ window.addEventListener('DOMContentLoaded', async () => {
             signer = provider.getSigner()
             connectedAddress = await signer.getAddress()
             updateUIAfterConnect(connectedAddress)
-            fetchTweetsFromChain(connectedAddress)
             showToast('Wallet reconnected ✅', true)
         } catch (err) {
             console.warn('Auto-reconnect failed:', err)
@@ -123,7 +120,7 @@ metamaskBtn.addEventListener('click', async () => {
         localStorage.setItem('walletConnected', 'true')
         updateUIAfterConnect(connectedAddress)
         walletModal.style.display = 'none'
-        fetchTweetsFromChain(connectedAddress)
+        //fetchTweetsFromChain(connectedAddress)
         showToast('Wallet connected ✅', true)
     } catch (err) {
         console.error('Wallet connection error:', err)
@@ -146,23 +143,6 @@ function logoutWallet() {
 
 function shortenAddress(address) {
     return address.slice(0, 6) + '...' + address.slice(-4)
-}
-
-function fetchTweetsFromChain(address) {
-    const tweetList = document.getElementById('tweetList')
-    tweetList.innerHTML = '' // Clear old tweets
-
-    const tweets = [
-        { user: address, content: 'Hello from the blockchain!' },
-        { user: address, content: 'This is a decentralized tweet.' },
-    ]
-
-    tweets.forEach((tweet) => {
-        const div = document.createElement('div')
-        div.className = 'tweet'
-        div.innerHTML = `<strong>${tweet.user}</strong><p>${tweet.content}</p>`
-        tweetList.appendChild(div)
-    })
 }
 
 function showToast(message, isSuccess = true) {
