@@ -1,14 +1,15 @@
 window.tweetFetcher = (() => {
+    // --- State and Config ---
     const abi = [
         'event TweetPosted(uint256 id, address indexed author, string content, uint256 timestamp, uint256 chainId)',
     ]
-
     const cacheKey = 'cachedTweets'
     let currentTweetMap = {}
     let allSortedTweets = []
     let currentOffset = 0
     const BATCH_SIZE = 10
 
+    // --- Caching ---
     function loadCache() {
         const raw = localStorage.getItem(cacheKey)
         return raw ? JSON.parse(raw) : {}
@@ -17,17 +18,14 @@ window.tweetFetcher = (() => {
     function saveCache(data) {
         const maxTotalTweets = 500
         const allTweets = []
-
         for (const chainId in data) {
             const tweets = data[chainId].tweets || []
-            tweets.forEach((tweet) => {
+            tweets.forEach((tweet) =>
                 allTweets.push({ ...tweet, _chainId: chainId })
-            })
+            )
         }
-
         allTweets.sort(compareTweets)
         const trimmed = allTweets.slice(0, maxTotalTweets)
-
         const grouped = {}
         trimmed.forEach((tweet) => {
             const cid = tweet._chainId
@@ -40,15 +38,14 @@ window.tweetFetcher = (() => {
             delete tweet._chainId
             grouped[cid].tweets.push(tweet)
         })
-
         try {
             localStorage.setItem(cacheKey, JSON.stringify(grouped))
         } catch (err) {
             console.warn('⚠️ localStorage full or error saving cache:', err)
-            showWarningToast('🧹 Cache too large. Old tweets removed.')
         }
     }
 
+    // --- Fetching ---
     function getFromBlock(chainId, defaultStartBlock) {
         const cache = loadCache()
         const chainData = cache[chainId]
@@ -64,7 +61,6 @@ window.tweetFetcher = (() => {
     }) {
         const provider = new ethers.providers.JsonRpcProvider(rpcUrl)
         const contract = new ethers.Contract(contractAddress, abi, provider)
-
         let latestBlock
         try {
             latestBlock = await provider.getBlockNumber()
@@ -72,16 +68,13 @@ window.tweetFetcher = (() => {
             console.warn(`Failed to get latest block for chain ${chainId}`, err)
             return { tweets: [], lastScannedBlock: null }
         }
-
         let fromBlock = getFromBlock(chainId, startBlock)
-        if (fromBlock > latestBlock) fromBlock = latestBlock
-
+        if (fromBlock > latestBlock)
+            return { tweets: [], lastScannedBlock: fromBlock - 1 }
         const allTweets = []
         let finalScannedBlock = fromBlock - 1
-
         for (let from = fromBlock; from <= latestBlock; from += 10000) {
             const to = Math.min(from + 9999, latestBlock)
-
             try {
                 const logs = await provider.getLogs({
                     address: contractAddress,
@@ -93,7 +86,6 @@ window.tweetFetcher = (() => {
                         ),
                     ],
                 })
-
                 const parsedLogs = logs.map((log) => {
                     const parsed = contract.interface.parseLog(log)
                     const { id, author, content, timestamp, chainId } =
@@ -107,7 +99,6 @@ window.tweetFetcher = (() => {
                         blockNumber: log.blockNumber,
                     }
                 })
-
                 allTweets.push(...parsedLogs)
                 finalScannedBlock = to
             } catch (err) {
@@ -118,7 +109,6 @@ window.tweetFetcher = (() => {
                 break
             }
         }
-
         return { tweets: allTweets, lastScannedBlock: finalScannedBlock }
     }
 
@@ -131,95 +121,60 @@ window.tweetFetcher = (() => {
         return b.timestamp - a.timestamp
     }
 
+    // --- Rendering ---
     function refreshAllSortedTweetsFromCache() {
         const cache = loadCache()
         const combined = []
-
         Object.values(cache).forEach((chainData) => {
-            if (chainData.tweets) {
-                combined.push(...chainData.tweets)
-            }
+            if (chainData.tweets) combined.push(...chainData.tweets)
         })
-
         allSortedTweets = combined.sort(compareTweets)
     }
 
     function renderNextBatch() {
-        refreshAllSortedTweetsFromCache()
-
         if (currentOffset >= allSortedTweets.length) return
-
         const tweetList = document.getElementById('tweetList')
         const fragment = document.createDocumentFragment()
         const nextBatch = allSortedTweets.slice(
             currentOffset,
             currentOffset + BATCH_SIZE
         )
-
         nextBatch.forEach((tweet) => {
             const div = document.createElement('div')
             div.className = 'tweet'
-            div.innerHTML = `
-                <strong>${tweet.author}</strong>
-                <p>${tweet.content}</p>
-                <small>⛓ Chain: ${tweet.chainId} • 🕒 ${new Date(tweet.timestamp * 1000).toLocaleString()}</small>
-            `
+            div.innerHTML = `<strong>${tweet.author}</strong><p>${tweet.content}</p><small>⛓ Chain: ${tweet.chainId} • 🕒 ${new Date(tweet.timestamp * 1000).toLocaleString()}</small>`
             fragment.appendChild(div)
-            currentTweetMap[`${tweet.chainId}-${tweet.id}`] = true
         })
-
         tweetList.appendChild(fragment)
         currentOffset += BATCH_SIZE
     }
 
-    function renderTweets(tweets) {
+    function renderInitialTweets() {
         const tweetList = document.getElementById('tweetList')
         tweetList.innerHTML = ''
-        currentTweetMap = {}
         currentOffset = 0
-        allSortedTweets = tweets.sort(compareTweets)
-
+        refreshAllSortedTweetsFromCache()
         if (allSortedTweets.length === 0) {
             tweetList.innerHTML = `<p style="opacity: 0.6;">No tweets found on-chain yet.</p>`
             return
         }
-
         renderNextBatch()
-    }
-
-    function loadCachedTweets() {
-        const cache = loadCache()
-        const combined = []
-
-        Object.values(cache).forEach((chainData) => {
-            if (chainData.tweets) {
-                combined.push(...chainData.tweets)
-            }
-        })
-
-        const sorted = combined.sort(compareTweets)
-        renderTweets(sorted)
     }
 
     async function fetchAndUpdateTweets(chains) {
         const cache = loadCache()
-        let allTweets = []
-
         for (const chain of chains) {
             const { tweets: freshTweets, lastScannedBlock } =
                 await fetchTweetsForChain(chain)
             const chainId = chain.chainId.toString()
-
             const existing = cache[chainId]?.tweets || []
             const merged = [...existing, ...freshTweets]
-
             const unique = Object.values(
                 merged.reduce((map, tweet) => {
                     map[`${tweet.chainId}-${tweet.id}`] = tweet
                     return map
                 }, {})
             )
-
             cache[chainId] = {
                 tweets: unique,
                 lastScannedBlock:
@@ -227,42 +182,41 @@ window.tweetFetcher = (() => {
                     cache[chainId]?.lastScannedBlock ??
                     chain.startBlock,
             }
-
-            allTweets.push(...unique)
         }
-
         saveCache(cache)
     }
 
-    function showWarningToast(msg) {
-        const toast = document.getElementById('toast')
-        if (!toast) return
-        toast.textContent = msg
-        toast.style.backgroundColor = '#ffc107'
-        toast.classList.add('show')
-        setTimeout(() => toast.classList.remove('show'), 4000)
+    // --- NEW: THE SELF-CONTAINED INITIALIZATION AND SCROLL LISTENER ---
+    function init() {
+        const feed = document.querySelector('.main-feed')
+        if (!feed) {
+            console.error(
+                'Could not find .main-feed element to attach scroll listener.'
+            )
+            return
+        }
+
+        let scrollTimeout = null
+        feed.addEventListener('scroll', () => {
+            if (scrollTimeout) return
+            scrollTimeout = setTimeout(() => {
+                scrollTimeout = null
+                const scrollTop = feed.scrollTop
+                const scrollHeight = feed.scrollHeight
+                const clientHeight = feed.clientHeight
+                const threshold = 100
+
+                if (scrollTop + clientHeight >= scrollHeight - threshold) {
+                    renderNextBatch()
+                }
+            }, 100)
+        })
     }
 
-    // Scroll listener on window for infinite scroll
-    let scrollTimeout = null
-    window.addEventListener('scroll', () => {
-        if (scrollTimeout) return
-
-        scrollTimeout = setTimeout(() => {
-            scrollTimeout = null
-
-            const scrollY = window.scrollY + window.innerHeight
-            const threshold = document.documentElement.scrollHeight - 100
-
-            if (scrollY >= threshold) {
-                renderNextBatch()
-            }
-        }, 100)
-    })
-
+    // --- The Public API ---
     return {
-        loadCachedTweets,
+        init, // Expose the new init function
+        loadCachedTweets: renderInitialTweets, // Rename for clarity, this is what the HTML calls
         fetchAndUpdateTweets,
-        renderNextBatch, // expose so scroll handler can call it
     }
 })()
