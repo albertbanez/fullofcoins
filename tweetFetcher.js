@@ -193,13 +193,28 @@ window.tweetFetcher = (() => {
         let scrollTimeout = null
         window.addEventListener('scroll', () => {
             if (scrollTimeout) return
+
             scrollTimeout = setTimeout(() => {
                 scrollTimeout = null
-                // These properties are correct for a window-level scroll
-                if (
-                    window.innerHeight + window.scrollY >=
-                    document.documentElement.scrollHeight - 200
-                ) {
+
+                const tweetList = document.getElementById('tweetList')
+                // Safety check: if there's no list or it has no tweets, do nothing.
+                if (!tweetList || tweetList.children.length === 0) {
+                    return
+                }
+
+                // Get the very last tweet element that is currently on the page.
+                const lastTweet = tweetList.lastElementChild
+                if (!lastTweet) return
+
+                // getBoundingClientRect() gives us the element's size and position relative to the viewport.
+                const rect = lastTweet.getBoundingClientRect()
+
+                // The condition to check:
+                // Is the top of the last tweet less than or equal to the viewport height?
+                // This means the last tweet is either visible on screen or has been scrolled past.
+                // We add a threshold (e.g., 300px) to start loading new tweets *before* the user hits the exact bottom.
+                if (rect.top <= window.innerHeight + 300) {
                     renderNextBatch()
                 }
             }, 100)
