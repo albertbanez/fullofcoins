@@ -4,9 +4,6 @@ html, body {
     padding: 0;
     font-family: Arial, sans-serif;
     background-color: #f5f8fa;
-    /* CRITICAL: Prevent the main page from scrolling */
-    overflow: hidden; 
-    height: 100%;
 }
 
 /* Layout */
@@ -14,75 +11,67 @@ html, body {
     max-width: 1000px;
     margin: 0 auto;
     display: flex;
-    /* CRITICAL: Force the wrapper to fill the browser window height */
-    height: 100vh; 
-    background-color: #fff;
+    /* This is key: it aligns the tops of all columns, preventing the sidebars from stretching */
+    align-items: flex-start;
     border-left: 1px solid #ddd;
     border-right: 1px solid #ddd;
 }
 
-/* Sidebar */
+/* Sidebar (1st Column) */
 .sidebar {
     flex: 1;
     max-width: 200px;
     padding: 20px;
     border-right: 1px solid #ddd;
-    /* No 'sticky' needed because the parent is fixed */
+    background-color: #fff; /* Give it a background so content doesn't show through */
+
+    /* THE STICKY LOGIC */
+    position: sticky;
+    top: 0;
+    /* Allow the sidebar to scroll internally if its own content is too long */
+    max-height: 100vh;
+    overflow-y: auto;
 }
 
-.sidebar h2 {
-    margin-bottom: 20px;
-    color: #1da1f2;
-}
-
-.sidebar ul {
-    list-style: none;
-    padding: 0;
-}
-
-.sidebar li {
-    padding: 10px 0;
-    cursor: pointer;
-}
-
-#connectBtn {
-    padding: 10px 15px;
-    background-color: #1da1f2;
-    color: white;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-}
-
-.wallet-address {
-    margin-top: 10px;
-    font-size: 0.9em;
-    word-break: break-word;
-    color: #333;
-}
-
-/* Main Feed (The only scrolling part) */
+/* Main Feed (2nd Column) */
 .main-feed {
-    flex: 2;
+    flex: 2; /* This makes the feed the main growing element */
+    min-width: 0; /* Prevents flexbox overflow issues */
     background-color: #e6ecf0;
-    /* CRITICAL: This gives the middle column its own independent scrollbar */
-    overflow-y: auto; 
 }
 
 .main-feed h2 {
     margin-top: 0;
-    padding: 20px 20px 0 20px; /* Add padding to the header */
+    padding: 20px;
     background: white;
-    position: sticky; /* Make the header sticky inside the feed */
+    border-bottom: 1px solid #ddd;
+    /* Make the header sticky within the feed */
+    position: sticky;
     top: 0;
     z-index: 10;
 }
 
+/* Right Panel (3rd Column) */
+.right-panel {
+    flex: 1;
+    max-width: 200px;
+    padding: 20px;
+    border-left: 1px solid #ddd;
+    background-color: #fff; /* Give it a background */
+
+    /* THE STICKY LOGIC */
+    position: sticky;
+    top: 0;
+    max-height: 100vh;
+    overflow-y: auto;
+}
+
+/* Tweet List & Individual Tweets */
 #tweetList {
     padding: 20px;
 }
 
-#tweetList > .tweet {
+.tweet {
     background: white;
     padding: 15px;
     margin-bottom: 10px;
@@ -90,21 +79,12 @@ html, body {
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
-.tweet {
-    padding: 10px;
-    border-bottom: 1px solid #ddd;
-}
+.tweet strong { display: block; word-break: break-all; margin-bottom: 5px; }
+.tweet p { margin: 0 0 10px 0; }
+.tweet small { font-size: 0.8em; color: #657786; }
 
-/* Right Panel */
-.right-panel {
-    flex: 1;
-    max-width: 200px;
-    padding: 20px;
-    border-left: 1px solid #ddd;
-    /* No 'sticky' needed */
-}
 
-/* Modal, Toast, NewPostsBanner (No functional changes needed) */
+/* Other Styles (Modal, Toast, etc. - No changes) */
 .modal { display: none; position: fixed; z-index: 99; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; }
 .modal-content { background: white; padding: 20px 30px; border-radius: 8px; text-align: center; max-width: 300px; }
 .modal-content button { margin-top: 10px; padding: 10px; width: 100%; font-size: 1em; }
@@ -115,20 +95,16 @@ html, body {
 #newPostsBanner button { background: #007bff; color: white; border: none; padding: 6px 14px; border-radius: 6px; font-weight: bold; cursor: pointer; }
 #newPostsBanner button:hover { background: #0056b3; }
 
+
 /* Responsive for mobile */
 @media (max-width: 768px) {
-    html, body {
-        overflow: auto; /* Allow body scroll on mobile */
-        height: auto;
-    }
     .layout-wrapper {
         flex-direction: column;
-        height: auto;
-    }
-    .main-feed {
-        overflow-y: visible; /* Disable internal scroll on mobile */
     }
     .sidebar, .right-panel {
+        position: static; /* Un-stick the sidebars on mobile */
         max-width: 100%;
+        max-height: none;
+        overflow-y: visible;
     }
 }

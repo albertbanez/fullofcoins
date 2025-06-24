@@ -4,7 +4,6 @@ window.tweetFetcher = (() => {
         'event TweetPosted(uint256 id, address indexed author, string content, uint256 timestamp, uint256 chainId)',
     ]
     const cacheKey = 'cachedTweets'
-    let currentTweetMap = {}
     let allSortedTweets = []
     let currentOffset = 0
     const BATCH_SIZE = 10
@@ -49,8 +48,9 @@ window.tweetFetcher = (() => {
     function getFromBlock(chainId, defaultStartBlock) {
         const cache = loadCache()
         const chainData = cache[chainId]
-        if (!chainData || !chainData.lastScannedBlock) return defaultStartBlock
-        return chainData.lastScannedBlock + 1
+        return chainData?.lastScannedBlock
+            ? chainData.lastScannedBlock + 1
+            : defaultStartBlock
     }
 
     async function fetchTweetsForChain({
@@ -65,7 +65,6 @@ window.tweetFetcher = (() => {
         try {
             latestBlock = await provider.getBlockNumber()
         } catch (err) {
-            console.warn(`Failed to get latest block for chain ${chainId}`, err)
             return { tweets: [], lastScannedBlock: null }
         }
         let fromBlock = getFromBlock(chainId, startBlock)
@@ -102,10 +101,6 @@ window.tweetFetcher = (() => {
                 allTweets.push(...parsedLogs)
                 finalScannedBlock = to
             } catch (err) {
-                console.warn(
-                    `Error scanning ${from}-${to} on chain ${chainId}:`,
-                    err.message
-                )
                 break
             }
         }
@@ -113,10 +108,10 @@ window.tweetFetcher = (() => {
     }
 
     function compareTweets(a, b) {
-        const aId = parseInt(a.id)
-        const bId = parseInt(b.id)
         if (b.blockNumber !== a.blockNumber)
             return b.blockNumber - a.blockNumber
+        const aId = parseInt(a.id),
+            bId = parseInt(b.id)
         if (bId !== aId) return bId - aId
         return b.timestamp - a.timestamp
     }
@@ -125,9 +120,9 @@ window.tweetFetcher = (() => {
     function refreshAllSortedTweetsFromCache() {
         const cache = loadCache()
         const combined = []
-        Object.values(cache).forEach((chainData) => {
-            if (chainData.tweets) combined.push(...chainData.tweets)
-        })
+        Object.values(cache).forEach((chainData) =>
+            combined.push(...(chainData.tweets || []))
+        )
         allSortedTweets = combined.sort(compareTweets)
     }
 
@@ -142,7 +137,7 @@ window.tweetFetcher = (() => {
         nextBatch.forEach((tweet) => {
             const div = document.createElement('div')
             div.className = 'tweet'
-            div.innerHTML = `<strong>${tweet.author}</strong><p>${tweet.content}</p><small>⛓ Chain: ${tweet.chainId} • 🕒 ${new Date(tweet.timestamp * 1000).toLocaleString()}</small>`
+            div.innerHTML = `<strong>${tweet.author}</strong><p>${escapeHTML(tweet.content)}</p><small>⛓ Chain: ${tweet.chainId} • 🕒 ${new Date(tweet.timestamp * 1000).toLocaleString()}</small>`
             fragment.appendChild(div)
         })
         tweetList.appendChild(fragment)
@@ -161,11 +156,18 @@ window.tweetFetcher = (() => {
         renderNextBatch()
     }
 
+    function escapeHTML(str) {
+        const p = document.createElement('p')
+        p.appendChild(document.createTextNode(str))
+        return p.innerHTML
+    }
+
     async function fetchAndUpdateTweets(chains) {
         const cache = loadCache()
         for (const chain of chains) {
             const { tweets: freshTweets, lastScannedBlock } =
                 await fetchTweetsForChain(chain)
+            if (freshTweets.length === 0 && lastScannedBlock === null) continue
             const chainId = chain.chainId.toString()
             const existing = cache[chainId]?.tweets || []
             const merged = [...existing, ...freshTweets]
@@ -186,27 +188,18 @@ window.tweetFetcher = (() => {
         saveCache(cache)
     }
 
-    // --- NEW: THE SELF-CONTAINED INITIALIZATION AND SCROLL LISTENER ---
+    // --- THE SCROLL LISTENER, NOW CORRECT FOR THE NEW CSS ---
     function init() {
-        const feed = document.querySelector('.main-feed')
-        if (!feed) {
-            console.error(
-                'Could not find .main-feed element to attach scroll listener.'
-            )
-            return
-        }
-
         let scrollTimeout = null
-        feed.addEventListener('scroll', () => {
+        window.addEventListener('scroll', () => {
             if (scrollTimeout) return
             scrollTimeout = setTimeout(() => {
                 scrollTimeout = null
-                const scrollTop = feed.scrollTop
-                const scrollHeight = feed.scrollHeight
-                const clientHeight = feed.clientHeight
-                const threshold = 100
-
-                if (scrollTop + clientHeight >= scrollHeight - threshold) {
+                // These properties are correct for a window-level scroll
+                if (
+                    window.innerHeight + window.scrollY >=
+                    document.documentElement.scrollHeight - 200
+                ) {
                     renderNextBatch()
                 }
             }, 100)
@@ -215,8 +208,8 @@ window.tweetFetcher = (() => {
 
     // --- The Public API ---
     return {
-        init, // Expose the new init function
-        loadCachedTweets: renderInitialTweets, // Rename for clarity, this is what the HTML calls
+        init,
+        loadCachedTweets: renderInitialTweets,
         fetchAndUpdateTweets,
     }
 })()

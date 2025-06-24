@@ -49,10 +49,10 @@
 
     <!-- Scripts -->
     <script src="https://unpkg.com/ethers@5.7.2/dist/ethers.umd.min.js"></script>
-   <script>
-    // --- The Corrected Initialization ---
+  <script>
+    // --- The Final Initialization ---
 
-    // Dynamically load your CSS and JS files
+    // Load scripts dynamically (your method is fine)
     const version = Date.now();
     const link = document.createElement('link');
     link.rel = 'stylesheet';
@@ -73,7 +73,6 @@
             startBlock: 8594107,
             chainId: 11155111,
         },
-        // Add more chains here
     ];
 
     // Wait for the DOM and scripts to be ready, then run the app
