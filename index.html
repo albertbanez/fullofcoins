@@ -5,6 +5,7 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>fullofcoins</title>
         <link rel="icon" href="favicon.png" type="image/png" />
+        <link rel="stylesheet" href="style.css?v=${Date.now()}" />
     </head>
     <body>
         <div class="layout-wrapper">
@@ -102,28 +103,11 @@
 
         <!-- Scripts -->
         <script src="https://unpkg.com/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+        <script src="app.js?v=${Date.now()}"></script>
+        <script src="tweetFetcher.js?v=${Date.now()}"></script>
+        <script src="tweetPost.js?v=${Date.now()}"></script>
+
         <script>
-            const version = Date.now()
-
-            // Load CSS with cache-busting
-            const link = document.createElement('link')
-            link.rel = 'stylesheet'
-            link.href = `style.css?v=${version}`
-            document.head.appendChild(link)
-
-            // Load JS files
-            const script1 = document.createElement('script')
-            script1.src = `app.js?v=${version}`
-            document.body.appendChild(script1)
-
-            const script2 = document.createElement('script')
-            script2.src = `tweetFetcher.js?v=${version}`
-            document.body.appendChild(script2)
-
-            const script3 = document.createElement('script')
-            script3.src = `tweetPost.js?v=${version}`
-            document.body.appendChild(script3)
-
             window.chains = [
                 {
                     rpcUrl: 'https://ethereum-sepolia.publicnode.com',
