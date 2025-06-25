@@ -110,7 +110,24 @@ postTweetBtn.addEventListener('click', async () => {
         showToast('Tweet posted ✅', true)
     } catch (err) {
         console.error('Transaction failed:', err)
-        showToast('Failed to post tweet ❌', false)
+
+        // Default error message
+        let userMessage = 'Failed to post tweet ❌'
+
+        // Try to detect the revert reason from the error object
+        if (err.error && err.error.message) {
+            if (err.error.message.includes('Cooldown')) {
+                userMessage =
+                    'Cooldown active: Please wait before posting again.'
+            }
+        } else if (err.message) {
+            if (err.message.includes('Cooldown')) {
+                userMessage =
+                    'Cooldown active: Please wait before posting again.'
+            }
+        }
+
+        showToast(userMessage, false)
     }
 })
 
