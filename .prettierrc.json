@@ -4,5 +4,8 @@
     "semi": false,
     "singleQuote": true,
     "useTabs": false,
-    "printWidth": 80
+    "printWidth": 80,
+    "htmlWhitespaceSensitivity": "css",
+    "bracketSameLine": false,
+    "arrowParens": "avoid"
 }
