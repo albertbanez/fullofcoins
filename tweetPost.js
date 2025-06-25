@@ -1,5 +1,6 @@
 const tweetInput = document.getElementById('tweetInput')
 const postTweetBtn = document.getElementById('postTweetBtn')
+const tweetMessage = document.getElementById('tweetMessage')
 
 // Full ABI including postTweet function and event
 const tweetAbi = [
@@ -47,22 +48,27 @@ const tweetAbi = [
         stateMutability: 'nonpayable',
         type: 'function',
     },
-    // Add any other ABI entries if needed
 ]
+
+function showInlineMessage(message, isSuccess = true) {
+    tweetMessage.textContent = message
+    tweetMessage.style.color = isSuccess ? '#28a745' : '#dc3545' // green or red
+}
 
 postTweetBtn.addEventListener('click', async () => {
     const tweetText = tweetInput.value.trim()
     if (!tweetText) {
-        alert('Tweet cannot be empty.')
+        showInlineMessage('Tweet cannot be empty.', false)
         return
     }
 
     if (!window.ethereum || !window.signer) {
-        alert('Please connect your wallet first.')
+        showInlineMessage('Please connect your wallet first.', false)
         return
     }
 
     console.log('Preparing to post tweet:', tweetText)
+    showInlineMessage('Posting tweet...', true)
 
     let currentNetwork
     try {
@@ -71,7 +77,7 @@ postTweetBtn.addEventListener('click', async () => {
         console.log('Current chainId:', currentNetwork.chainId)
     } catch (err) {
         console.error('Network detection failed:', err)
-        alert('Failed to detect network.')
+        showInlineMessage('Failed to detect network.', false)
         return
     }
 
@@ -79,11 +85,11 @@ postTweetBtn.addEventListener('click', async () => {
     const matchedChain = chains.find(
         (c) => c.chainId === currentNetwork.chainId
     )
-    const fallbackChain = chains.find((c) => c.chainId === 11155111) // Sepolia
+    const fallbackChain = chains.find((c) => c.chainId === 11155111)
     const targetChain = matchedChain || fallbackChain
 
     if (!targetChain) {
-        alert('No supported chain is available.')
+        showInlineMessage('No supported chain is available.', false)
         return
     }
 
@@ -102,42 +108,30 @@ postTweetBtn.addEventListener('click', async () => {
 
         const tx = await contractWithSigner.postTweet(tweetText)
         console.log('Transaction sent:', tx.hash)
-        showToast('Posting tweet...', true)
 
         await tx.wait()
         console.log('Transaction confirmed')
         tweetInput.value = ''
-        showToast('Tweet posted ✅', true)
+        showInlineMessage('Tweet posted ✅', true)
+
+        setTimeout(() => {
+            tweetMessage.textContent = ''
+        }, 5000)
     } catch (err) {
         console.error('Transaction failed:', err)
 
-        // Default error message
         let userMessage = 'Failed to post tweet ❌'
 
-        // Try to detect the revert reason from the error object
-        if (err.error && err.error.message) {
-            if (err.error.message.includes('Cooldown')) {
-                userMessage =
-                    'Cooldown active: Please wait before posting again.'
-            }
-        } else if (err.message) {
-            if (err.message.includes('Cooldown')) {
-                userMessage =
-                    'Cooldown active: Please wait before posting again.'
-            }
+        if (
+            err.error &&
+            err.error.message &&
+            err.error.message.includes('Cooldown')
+        ) {
+            userMessage = 'Cooldown active: Please wait before posting again.'
+        } else if (err.message && err.message.includes('Cooldown')) {
+            userMessage = 'Cooldown active: Please wait before posting again.'
         }
 
-        showToast(userMessage, false)
+        showInlineMessage(userMessage, false)
     }
 })
-
-// You can keep your existing showToast function or add one here:
-function showToast(message, isSuccess = true) {
-    const toast = document.getElementById('toast')
-    toast.textContent = message
-    toast.style.backgroundColor = isSuccess ? '#28a745' : '#dc3545'
-    toast.classList.add('show')
-    setTimeout(() => {
-        toast.classList.remove('show')
-    }, 3000)
-}
