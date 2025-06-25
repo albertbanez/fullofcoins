@@ -1,3 +1,5 @@
+// tweetPost.js
+
 const tweetInput = document.getElementById('tweetInput')
 const postTweetBtn = document.getElementById('postTweetBtn')
 const tweetMessage = document.getElementById('tweetMessage')
@@ -67,7 +69,7 @@ postTweetBtn.addEventListener('click', async () => {
         return
     }
 
-    console.log('Preparing to post tweet:', tweetText)
+    postTweetBtn.disabled = true // Disable button
     showInlineMessage('Posting tweet...', true)
 
     let currentNetwork
@@ -78,6 +80,7 @@ postTweetBtn.addEventListener('click', async () => {
     } catch (err) {
         console.error('Network detection failed:', err)
         showInlineMessage('Failed to detect network.', false)
+        postTweetBtn.disabled = false // Re-enable button on error
         return
     }
 
@@ -90,6 +93,7 @@ postTweetBtn.addEventListener('click', async () => {
 
     if (!targetChain) {
         showInlineMessage('No supported chain is available.', false)
+        postTweetBtn.disabled = false // Re-enable button
         return
     }
 
@@ -134,4 +138,6 @@ postTweetBtn.addEventListener('click', async () => {
 
         showInlineMessage(userMessage, false)
     }
+
+    postTweetBtn.disabled = false // Always re-enable after try/catch
 })
