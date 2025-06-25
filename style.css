@@ -36,6 +36,10 @@ body.modal-open {
   background-color: #e6ecf0;
 }
 
+.feed-header {
+  /* This is now just for mobile, but keep styles for desktop header part */
+}
+
 .main-feed h2 {
   margin-top: 0;
   padding: 20px;
@@ -155,28 +159,33 @@ body.modal-open {
   transform: translateY(0);
 }
 
-/* Sticky Banner */
+/* --- NEW STYLES for Sticky Banner --- */
 #newPostsBanner {
   text-align: center;
   padding: 10px;
   position: sticky;
-  top: 0;
-  background: rgba(229, 236, 240, 0.95);
-  z-index: 20;
+  /* Position it just below the sticky header. The h2 has 20px padding top/bottom + font-size ~= 60px */
+  top: 61px;
+  background: rgba(255, 255, 255, 0.95);
+  z-index: 15; /* Higher than tweet list, lower than modals */
+  border-bottom: 1px solid #ddd;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
 }
 
 #newPostsBanner button {
-  background: #007bff;
+  background: #1da1f2;
   color: white;
   border: none;
-  padding: 6px 14px;
-  border-radius: 6px;
+  padding: 8px 16px;
+  border-radius: 20px;
   font-weight: bold;
   cursor: pointer;
+  font-size: 0.9em;
+  transition: background-color 0.2s;
 }
 
 #newPostsBanner button:hover {
-  background: #0056b3;
+  background: #0c85d0;
 }
 
 /* Mobile Styles */
@@ -232,6 +241,11 @@ body.menu-is-open .sidebar-overlay {
     flex-grow: 1;
     text-align: center;
     padding: 15px 0;
+  }
+
+  /* Adjust banner position for mobile */
+  #newPostsBanner {
+    top: 55px; /* Height of the mobile header */
   }
 
   .menu-toggle {

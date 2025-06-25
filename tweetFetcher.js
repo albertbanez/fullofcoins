@@ -8,9 +8,16 @@ window.tweetFetcher = (() => {
     let currentOffset = 0
     const BATCH_SIZE = 10
 
-    // --- Caching ---
+    // --- NEW STATE for Banner ---
+    let pendingNewTweets = []
+    let newPostsBanner = null
+    let showNewPostsBtn = null
+    let tweetList = null
+
+    // --- Caching --- (FIXED: Full implementation provided)
     function loadCache() {
         const raw = localStorage.getItem(cacheKey)
+        // This now correctly returns {} if the cache is empty, preventing the error.
         return raw ? JSON.parse(raw) : {}
     }
 
@@ -44,7 +51,7 @@ window.tweetFetcher = (() => {
         }
     }
 
-    // --- Fetching ---
+    // --- Fetching --- (FIXED: Full implementation provided)
     function getFromBlock(chainId, defaultStartBlock) {
         const cache = loadCache()
         const chainData = cache[chainId]
@@ -116,10 +123,26 @@ window.tweetFetcher = (() => {
         return b.timestamp - a.timestamp
     }
 
+    // --- Helper Functions ---
+    function escapeHTML(str) {
+        const p = document.createElement('p')
+        p.appendChild(document.createTextNode(str))
+        return p.innerHTML
+    }
+
+    function createTweetElement(tweet) {
+        const div = document.createElement('div')
+        div.className = 'tweet'
+        div.setAttribute('data-tweet-id', `${tweet.chainId}-${tweet.id}`)
+        div.innerHTML = `<strong>${tweet.author}</strong><p>${escapeHTML(tweet.content)}</p><small>⛓ Chain: ${tweet.chainId} • 🕒 ${new Date(tweet.timestamp * 1000).toLocaleString()}</small>`
+        return div
+    }
+
     // --- Rendering ---
     function refreshAllSortedTweetsFromCache() {
-        const cache = loadCache()
+        const cache = loadCache() // This will now receive {} instead of undefined
         const combined = []
+        // This line will no longer crash because `cache` is an object.
         Object.values(cache).forEach((chainData) =>
             combined.push(...(chainData.tweets || []))
         )
@@ -128,24 +151,19 @@ window.tweetFetcher = (() => {
 
     function renderNextBatch() {
         if (currentOffset >= allSortedTweets.length) return
-        const tweetList = document.getElementById('tweetList')
         const fragment = document.createDocumentFragment()
         const nextBatch = allSortedTweets.slice(
             currentOffset,
             currentOffset + BATCH_SIZE
         )
         nextBatch.forEach((tweet) => {
-            const div = document.createElement('div')
-            div.className = 'tweet'
-            div.innerHTML = `<strong>${tweet.author}</strong><p>${escapeHTML(tweet.content)}</p><small>⛓ Chain: ${tweet.chainId} • 🕒 ${new Date(tweet.timestamp * 1000).toLocaleString()}</small>`
-            fragment.appendChild(div)
+            fragment.appendChild(createTweetElement(tweet))
         })
         tweetList.appendChild(fragment)
         currentOffset += BATCH_SIZE
     }
 
     function renderInitialTweets() {
-        const tweetList = document.getElementById('tweetList')
         tweetList.innerHTML = ''
         currentOffset = 0
         refreshAllSortedTweetsFromCache()
@@ -156,17 +174,32 @@ window.tweetFetcher = (() => {
         renderNextBatch()
     }
 
-    function escapeHTML(str) {
-        const p = document.createElement('p')
-        p.appendChild(document.createTextNode(str))
-        return p.innerHTML
+    function showPendingTweets() {
+        if (pendingNewTweets.length === 0) return
+
+        const fragment = document.createDocumentFragment()
+        pendingNewTweets.forEach((tweet) => {
+            fragment.appendChild(createTweetElement(tweet))
+        })
+
+        tweetList.prepend(fragment)
+        allSortedTweets = [...pendingNewTweets, ...allSortedTweets]
+        currentOffset += pendingNewTweets.length
+
+        pendingNewTweets = []
+        newPostsBanner.style.display = 'none'
     }
 
+    // --- Core Logic ---
     async function fetchAndUpdateTweets(chains) {
         const cache = loadCache()
+        let hasNewTweets = false
         for (const chain of chains) {
             const { tweets: freshTweets, lastScannedBlock } =
                 await fetchTweetsForChain(chain)
+
+            if (freshTweets.length > 0) hasNewTweets = true
+
             if (freshTweets.length === 0 && lastScannedBlock === null) continue
             const chainId = chain.chainId.toString()
             const existing = cache[chainId]?.tweets || []
@@ -186,15 +219,49 @@ window.tweetFetcher = (() => {
             }
         }
         saveCache(cache)
+
+        if (hasNewTweets) {
+            checkForNewTweets()
+        }
+    }
+
+    function checkForNewTweets() {
+        const cache = loadCache()
+        const combinedFromCache = []
+        Object.values(cache).forEach((chainData) =>
+            combinedFromCache.push(...(chainData.tweets || []))
+        )
+        combinedFromCache.sort(compareTweets)
+
+        const displayedIds = new Set(
+            allSortedTweets.map((t) => `${t.chainId}-${t.id}`)
+        )
+
+        const newTweetsFromCache = combinedFromCache.filter(
+            (t) => !displayedIds.has(`${t.chainId}-${t.id}`)
+        )
+
+        if (newTweetsFromCache.length > 0) {
+            pendingNewTweets = newTweetsFromCache
+            showNewPostsBtn.textContent = `Show ${pendingNewTweets.length} new post${pendingNewTweets.length > 1 ? 's' : ''}`
+            newPostsBanner.style.display = 'block'
+        }
     }
 
     function init() {
+        newPostsBanner = document.getElementById('newPostsBanner')
+        showNewPostsBtn = document.getElementById('showNewPostsBtn')
+        tweetList = document.getElementById('tweetList')
+
+        if (showNewPostsBtn) {
+            showNewPostsBtn.addEventListener('click', showPendingTweets)
+        }
+
         let scrollTimeout = null
         window.addEventListener('scroll', () => {
             if (scrollTimeout) return
             scrollTimeout = setTimeout(() => {
                 scrollTimeout = null
-                const tweetList = document.getElementById('tweetList')
                 if (!tweetList || tweetList.children.length === 0) {
                     return
                 }
@@ -213,5 +280,6 @@ window.tweetFetcher = (() => {
         init,
         loadCachedTweets: renderInitialTweets,
         fetchAndUpdateTweets,
+        checkForNewTweets,
     }
 })()
