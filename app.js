@@ -14,12 +14,15 @@ if (window.ethereum) {
             try {
                 provider = new ethers.providers.Web3Provider(window.ethereum)
                 signer = provider.getSigner()
+                window.provider = provider
+                window.signer = signer
+
                 connectedAddress = await signer.getAddress()
 
                 localStorage.setItem('walletConnected', 'true')
                 updateUIAfterConnect(connectedAddress)
                 walletModal.style.display = 'none'
-                document.body.classList.remove('modal-open') // FIX
+                document.body.classList.remove('modal-open')
                 showToast('Wallet connected ✅', true)
             } catch (err) {
                 console.error('Error during accountsChanged connect:', err)
@@ -36,12 +39,15 @@ if (window.ethereum) {
             const accounts = await provider.listAccounts()
             if (accounts.length > 0 && !connectedAddress) {
                 signer = provider.getSigner()
+                window.provider = provider
+                window.signer = signer
+
                 connectedAddress = await signer.getAddress()
 
                 localStorage.setItem('walletConnected', 'true')
                 updateUIAfterConnect(connectedAddress)
                 walletModal.style.display = 'none'
-                document.body.classList.remove('modal-open') // FIX
+                document.body.classList.remove('modal-open')
                 showToast('Wallet connected ✅', true)
             }
         } catch (err) {
@@ -56,6 +62,9 @@ window.addEventListener('DOMContentLoaded', async () => {
             provider = new ethers.providers.Web3Provider(window.ethereum)
             await provider.send('eth_requestAccounts', [])
             signer = provider.getSigner()
+            window.provider = provider
+            window.signer = signer
+
             connectedAddress = await signer.getAddress()
             updateUIAfterConnect(connectedAddress)
             showToast('Wallet reconnected ✅', true)
@@ -71,7 +80,7 @@ window.addEventListener('DOMContentLoaded', async () => {
 connectBtn.addEventListener('click', () => {
     if (connectedAddress) {
         logoutWallet()
-        document.body.classList.remove('modal-open') // Defensive cleanup
+        document.body.classList.remove('modal-open')
     } else {
         walletModal.style.display = 'flex'
         document.body.classList.add('modal-open')
@@ -88,7 +97,7 @@ closeModal.addEventListener('click', () => {
 metamaskBtn.addEventListener('click', async () => {
     if (connectedAddress) {
         walletModal.style.display = 'none'
-        document.body.classList.remove('modal-open') // FIX
+        document.body.classList.remove('modal-open')
         return
     }
 
@@ -113,12 +122,15 @@ metamaskBtn.addEventListener('click', async () => {
         provider = new ethers.providers.Web3Provider(window.ethereum)
         await provider.send('eth_requestAccounts', [])
         signer = provider.getSigner()
+        window.provider = provider
+        window.signer = signer
+
         connectedAddress = await signer.getAddress()
 
         localStorage.setItem('walletConnected', 'true')
         updateUIAfterConnect(connectedAddress)
         walletModal.style.display = 'none'
-        document.body.classList.remove('modal-open') // FIX
+        document.body.classList.remove('modal-open')
         showToast('Wallet connected ✅', true)
     } catch (err) {
         console.error('Wallet connection error:', err)
@@ -136,7 +148,7 @@ function logoutWallet() {
     connectBtn.textContent = 'Connect Wallet'
     walletAddressDiv.textContent = ''
     localStorage.removeItem('walletConnected')
-    document.body.classList.remove('modal-open') // Just in case modal is open
+    document.body.classList.remove('modal-open')
     showToast('Wallet disconnected 🔌', false)
 }
 

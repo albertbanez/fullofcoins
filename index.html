@@ -35,6 +35,14 @@
         <button id="showNewPostsBtn">Show new posts</button>
       </div>
 
+    <!-- Tweet Composer -->
+<div id="tweetComposer" style="padding: 10px 20px; background: white; border-bottom: 1px solid #ddd;">
+  <textarea id="tweetInput" rows="3" placeholder="What's happening?" style="width:100%; padding:10px; border-radius:6px;"></textarea>
+  <button id="postTweetBtn" style="margin-top:10px; background:#1da1f2; color:white; border:none; padding:8px 16px; border-radius:20px; font-weight:bold; cursor:pointer;">
+    Tweet
+  </button>
+</div>
+
       <div id="tweetList">
         <!-- Tweets will go here -->
       </div>
@@ -78,12 +86,16 @@
     script2.src = `tweetFetcher.js?v=${version}`;
     document.body.appendChild(script2);
 
-    const chains = [{
-      rpcUrl: 'https://ethereum-sepolia.publicnode.com',
-      contractAddress: '0xF9cF9c918b4DD16e5906FF70Ba58228E3d784736',
-      startBlock: 8594107,
-      chainId: 11155111,
-    }];
+    const script3 = document.createElement('script');
+    script3.src = `tweetPost.js?v=${version}`;
+    document.body.appendChild(script3);
+
+window.chains = [{
+  rpcUrl: 'https://ethereum-sepolia.publicnode.com',
+  contractAddress: '0xF9cF9c918b4DD16e5906FF70Ba58228E3d784736',
+  startBlock: 8594107,
+  chainId: 11155111,
+}];
 
     window.addEventListener('DOMContentLoaded', () => {
       const ready = setInterval(() => {
