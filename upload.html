@@ -1,0 +1,70 @@
+<!doctype html>
+<html>
+    <head>
+        <title>Upload to Lighthouse IPFS</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                padding: 20px;
+            }
+            .preview {
+                margin-top: 10px;
+                max-width: 300px;
+            }
+        </style>
+    </head>
+    <body>
+        <h2>Upload Image to IPFS (via Lighthouse)</h2>
+
+        <input type="file" id="fileInput" accept="image/*" />
+        <button id="uploadBtn">Upload</button>
+
+        <div id="status"></div>
+        <img id="preview" class="preview" />
+
+        <script>
+            const fileInput = document.getElementById('fileInput')
+            const uploadBtn = document.getElementById('uploadBtn')
+            const status = document.getElementById('status')
+            const preview = document.getElementById('preview')
+
+            uploadBtn.addEventListener('click', async () => {
+                const file = fileInput.files[0]
+                if (!file) {
+                    status.textContent = 'Please select a file first.'
+                    return
+                }
+
+                // Preview the image
+                preview.src = URL.createObjectURL(file)
+
+                const formData = new FormData()
+                formData.append('file', file)
+
+                status.textContent = 'Uploading...'
+
+                try {
+                    const res = await fetch(
+                        'https://foc-lighthouse-uploader.albertbanez.workers.dev',
+                        {
+                            method: 'POST',
+                            body: formData,
+                        }
+                    )
+
+                    const data = await res.json()
+
+                    if (data.cid) {
+                        status.innerHTML = `✅ Uploaded!<br>CID: <code>${data.cid}</code><br>
+            <a href="https://ipfs.io/ipfs/${data.cid}" target="_blank">View on IPFS</a>`
+                    } else {
+                        status.textContent =
+                            'Upload failed: ' + JSON.stringify(data)
+                    }
+                } catch (err) {
+                    status.textContent = 'Error: ' + err.message
+                }
+            })
+        </script>
+    </body>
+</html>
