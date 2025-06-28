@@ -29,6 +29,12 @@ const tweetAbi = [
             },
             {
                 indexed: false,
+                internalType: 'string',
+                name: 'imageCid',
+                type: 'string',
+            },
+            {
+                indexed: false,
                 internalType: 'uint256',
                 name: 'timestamp',
                 type: 'uint256',
@@ -44,7 +50,31 @@ const tweetAbi = [
         type: 'event',
     },
     {
-        inputs: [{ internalType: 'string', name: '_content', type: 'string' }],
+        inputs: [],
+        name: 'COOLDOWN_TIME',
+        outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+        stateMutability: 'view',
+        type: 'function',
+    },
+    {
+        inputs: [{ internalType: 'address', name: '', type: 'address' }],
+        name: 'lastPostTime',
+        outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+        stateMutability: 'view',
+        type: 'function',
+    },
+    {
+        inputs: [],
+        name: 'nextTweetId',
+        outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+        stateMutability: 'view',
+        type: 'function',
+    },
+    {
+        inputs: [
+            { internalType: 'string', name: '_content', type: 'string' },
+            { internalType: 'string', name: '_imageCid', type: 'string' },
+        ],
         name: 'postTweet',
         outputs: [],
         stateMutability: 'nonpayable',
