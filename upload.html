@@ -16,7 +16,7 @@
     <body>
         <h2>Upload Image to IPFS (via Lighthouse)</h2>
 
-        <input type="file" id="fileInput" accept="image/*" />
+        <input type="file" id="fileInput" accept="image/jpeg,image/png" />
         <button id="uploadBtn">Upload</button>
 
         <div id="status"></div>
@@ -28,6 +28,52 @@
             const status = document.getElementById('status')
             const preview = document.getElementById('preview')
 
+            function resizeImage(file, maxWidth = 800, maxHeight = 800) {
+                return new Promise((resolve, reject) => {
+                    const img = new Image()
+                    const url = URL.createObjectURL(file)
+
+                    img.onload = () => {
+                        let width = img.width
+                        let height = img.height
+
+                        if (width > height && width > maxWidth) {
+                            height *= maxWidth / width
+                            width = maxWidth
+                        } else if (height > maxHeight) {
+                            width *= maxHeight / height
+                            height = maxHeight
+                        }
+
+                        const canvas = document.createElement('canvas')
+                        canvas.width = width
+                        canvas.height = height
+                        const ctx = canvas.getContext('2d')
+                        ctx.drawImage(img, 0, 0, width, height)
+
+                        canvas.toBlob(
+                            blob => {
+                                if (!blob) return reject('Compression failed')
+                                const resizedFile = new File(
+                                    [blob],
+                                    file.name,
+                                    {
+                                        type: file.type,
+                                    }
+                                )
+                                resolve(resizedFile)
+                                URL.revokeObjectURL(url)
+                            },
+                            file.type,
+                            0.85
+                        )
+                    }
+
+                    img.onerror = err => reject(err)
+                    img.src = url
+                })
+            }
+
             uploadBtn.addEventListener('click', async () => {
                 const file = fileInput.files[0]
                 if (!file) {
@@ -35,17 +81,28 @@
                     return
                 }
 
-                // Preview the image
-                preview.src = URL.createObjectURL(file)
+                // Resize the image
+                status.textContent = 'Resizing image...'
+                let resizedFile
+                try {
+                    resizedFile = await resizeImage(file)
+                } catch (err) {
+                    status.textContent = 'Resize error: ' + err
+                    return
+                }
 
+                // Show preview of resized image
+                preview.src = URL.createObjectURL(resizedFile)
+
+                // Prepare form data
                 const formData = new FormData()
-                formData.append('file', file)
+                formData.append('file', resizedFile)
 
                 status.textContent = 'Uploading...'
 
                 try {
                     const res = await fetch(
-                        'https://foc-lighthouse-uploader.albertbanez.workers.dev',
+                        'https://foc-lighthouse-uploader.fullofcoins.workers.dev',
                         {
                             method: 'POST',
                             body: formData,
@@ -55,14 +112,16 @@
                     const data = await res.json()
 
                     if (data.cid) {
+                        const url = `https://gateway.lighthouse.storage/ipfs/${data.cid}`
                         status.innerHTML = `✅ Uploaded!<br>CID: <code>${data.cid}</code><br>
-            <a href="https://ipfs.io/ipfs/${data.cid}" target="_blank">View on IPFS</a>`
+                            <a href="${url}" target="_blank">View on IPFS</a><br>
+                            <img src="${url}" class="preview" />`
                     } else {
                         status.textContent =
                             'Upload failed: ' + JSON.stringify(data)
                     }
                 } catch (err) {
-                    status.textContent = 'Error: ' + err.message
+                    status.textContent = 'Upload error: ' + err.message
                 }
             })
         </script>
