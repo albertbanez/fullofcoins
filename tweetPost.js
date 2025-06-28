@@ -85,10 +85,8 @@ postTweetBtn.addEventListener('click', async () => {
     }
 
     const chains = window.chains || []
-    const matchedChain = chains.find(
-        (c) => c.chainId === currentNetwork.chainId
-    )
-    const fallbackChain = chains.find((c) => c.chainId === 11155111)
+    const matchedChain = chains.find(c => c.chainId === currentNetwork.chainId)
+    const fallbackChain = chains.find(c => c.chainId === 11155111)
     const targetChain = matchedChain || fallbackChain
 
     if (!targetChain) {
@@ -110,7 +108,7 @@ postTweetBtn.addEventListener('click', async () => {
         )
         const contractWithSigner = contract.connect(signer)
 
-        const tx = await contractWithSigner.postTweet(tweetText)
+        const tx = await contractWithSigner.postTweet(tweetText, '')
         console.log('Transaction sent:', tx.hash)
 
         await tx.wait()

@@ -1,6 +1,6 @@
 window.tweetFetcher = (() => {
     const abi = [
-        'event TweetPosted(uint256 id, address indexed author, string content, uint256 timestamp, uint256 chainId)',
+        'event TweetPosted(uint256 id, address indexed author, string content, string imageCid, uint256 timestamp, uint256 chainId)',
     ]
     const cacheKey = 'cachedTweets'
     let allSortedTweets = []
@@ -83,7 +83,7 @@ window.tweetFetcher = (() => {
                     toBlock: to,
                     topics: [
                         ethers.utils.id(
-                            'TweetPosted(uint256,address,string,uint256,uint256)'
+                            'TweetPosted(uint256,address,string,string,uint256,uint256)'
                         ),
                     ],
                 })
