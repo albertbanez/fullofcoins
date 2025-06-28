@@ -63,17 +63,20 @@ window.tweetFetcher = (() => {
     }) {
         const provider = new ethers.providers.JsonRpcProvider(rpcUrl)
         const contract = new ethers.Contract(contractAddress, abi, provider)
+
         let latestBlock
         try {
             latestBlock = await provider.getBlockNumber()
         } catch (err) {
             return { tweets: [], lastScannedBlock: null }
         }
-        let fromBlock = startBlock
-        if (fromBlock > latestBlock)
-            return { tweets: [], lastScannedBlock: fromBlock - 1 }
+
+        // ✅ Ensure fromBlock is not in the future
+        let fromBlock = Math.min(startBlock, latestBlock)
+
         const allTweets = []
         let finalScannedBlock = fromBlock - 1
+
         for (let from = fromBlock; from <= latestBlock; from += 10000) {
             const to = Math.min(from + 9999, latestBlock)
             try {
@@ -81,11 +84,7 @@ window.tweetFetcher = (() => {
                     address: contractAddress,
                     fromBlock: from,
                     toBlock: to,
-                    topics: [
-                        ethers.utils.id(
-                            'TweetPosted(uint256,address,string,string,uint256,uint256)'
-                        ),
-                    ],
+                    topics: [contract.interface.getEventTopic('TweetPosted')],
                 })
                 const parsedLogs = logs.map(log => {
                     const parsed = contract.interface.parseLog(log)
@@ -106,13 +105,20 @@ window.tweetFetcher = (() => {
                 break
             }
         }
+
         return { tweets: allTweets, lastScannedBlock: finalScannedBlock }
     }
 
     async function smartFetchTweets(chain, previousLastBlock) {
         const provider = new ethers.providers.JsonRpcProvider(chain.rpcUrl)
         const latestBlock = await provider.getBlockNumber()
-        const delta = latestBlock - (previousLastBlock || chain.startBlock)
+
+        const effectiveLastBlock =
+            previousLastBlock !== undefined && previousLastBlock !== null
+                ? previousLastBlock
+                : chain.startBlock
+
+        const delta = latestBlock - effectiveLastBlock
 
         let fromBlock
         if (!previousLastBlock || delta > 500) {
@@ -120,6 +126,9 @@ window.tweetFetcher = (() => {
         } else {
             fromBlock = previousLastBlock + 1
         }
+
+        // ✅ Ensure we do not go beyond latest block
+        fromBlock = Math.min(fromBlock, latestBlock)
 
         const result = await fetchTweetsForChain({
             ...chain,
@@ -148,7 +157,11 @@ window.tweetFetcher = (() => {
         const div = document.createElement('div')
         div.className = 'tweet'
         div.setAttribute('data-tweet-id', `${tweet.chainId}-${tweet.id}`)
-        div.innerHTML = `<strong>${tweet.author}</strong><p>${escapeHTML(tweet.content)}</p><small>⛓ Chain: ${tweet.chainId} • 🕒 ${new Date(tweet.timestamp * 1000).toLocaleString()}</small>`
+        div.innerHTML = `<strong>${tweet.author}</strong><p>${escapeHTML(
+            tweet.content
+        )}</p><small>⛓ Chain: ${tweet.chainId} • 🕒 ${new Date(
+            tweet.timestamp * 1000
+        ).toLocaleString()}</small>`
         return div
     }
 
@@ -188,20 +201,25 @@ window.tweetFetcher = (() => {
 
     function showPendingTweets() {
         if (pendingNewTweets.length === 0) return
-        const fragment = document.createDocumentFragment()
-        pendingNewTweets.forEach(tweet => {
-            const existing = document.querySelector(
-                `[data-tweet-id="${tweet.chainId}-${tweet.id}"]`
-            )
-            if (!existing) fragment.appendChild(createTweetElement(tweet))
-        })
-        tweetList.prepend(fragment)
+
+        // Merge and deduplicate
         allSortedTweets = [...pendingNewTweets, ...allSortedTweets]
-        currentOffset += pendingNewTweets.length
+        allSortedTweets = Object.values(
+            allSortedTweets.reduce((map, tweet) => {
+                map[`${tweet.chainId}-${tweet.id}`] = tweet
+                return map
+            }, {})
+        ).sort(compareTweets)
+
+        // Clear entire list (removes "no tweets" msg if present)
+        tweetList.innerHTML = ''
+        currentOffset = 0
+        renderNextBatch()
+
+        // Cleanup
         pendingNewTweets = []
         newPostsBanner.style.display = 'none'
     }
-
     async function fetchAndUpdateTweets(chains) {
         const cache = loadCache()
         let hasNewTweets = false
