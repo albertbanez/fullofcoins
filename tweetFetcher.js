@@ -1,31 +1,85 @@
 window.tweetFetcher = (() => {
+    // NEW: Configuration switch to easily enable or disable the feature.
+    const ENABLE_BACKGROUND_BACKFILL = true
+
     const abi = [
         'event TweetPosted(uint256 id, address indexed author, string content, string imageCid, uint256 timestamp, uint256 chainId)',
     ]
-    const cacheKey = 'cachedTweets'
+    const cacheKey = 'cachedTweets_v2'
     let allSortedTweets = []
     let currentOffset = 0
     const BATCH_SIZE = 10
+    const BACKFILL_CHUNK_SIZE = 5000
+    const BACKFILL_INTERVAL = 10000
 
     let pendingNewTweets = []
     let newPostsBanner = null
     let showNewPostsBtn = null
     let tweetList = null
 
+    let isBackfilling = false
+
+    // --- Cache Management ---
+
     function loadCache() {
         const raw = localStorage.getItem(cacheKey)
-        return raw ? JSON.parse(raw) : {}
+        const data = raw ? JSON.parse(raw) : {}
+
+        const oldCacheRaw = localStorage.getItem('cachedTweets')
+        if (oldCacheRaw && Object.keys(data).length === 0) {
+            console.log('Migrating old cache...')
+            const oldCache = JSON.parse(oldCacheRaw)
+            for (const chainId in oldCache) {
+                if (oldCache[chainId] && oldCache[chainId].lastScannedBlock) {
+                    data[chainId] = {
+                        tweets: oldCache[chainId].tweets || [],
+                        scannedRanges: [
+                            {
+                                from: oldCache[chainId].lastScannedBlock - 9999,
+                                to: oldCache[chainId].lastScannedBlock,
+                            },
+                        ],
+                    }
+                }
+            }
+            localStorage.setItem(cacheKey, JSON.stringify(data))
+            localStorage.removeItem('cachedTweets')
+        }
+
+        return data
+    }
+
+    function mergeRanges(ranges) {
+        if (!ranges || ranges.length < 2) return ranges || []
+        ranges.sort((a, b) => a.from - b.from)
+        const merged = [ranges[0]]
+        for (let i = 1; i < ranges.length; i++) {
+            const last = merged[merged.length - 1]
+            const current = ranges[i]
+            if (current.from <= last.to + 1) {
+                last.to = Math.max(last.to, current.to)
+            } else {
+                merged.push(current)
+            }
+        }
+        return merged
     }
 
     function saveCache(data) {
         const maxTotalTweets = 500
         const allTweets = []
         for (const chainId in data) {
-            const tweets = data[chainId].tweets || []
+            if (data[chainId] && data[chainId].scannedRanges) {
+                data[chainId].scannedRanges = mergeRanges(
+                    data[chainId].scannedRanges
+                )
+            }
+            const tweets = (data[chainId] && data[chainId].tweets) || []
             tweets.forEach(tweet =>
                 allTweets.push({ ...tweet, _chainId: chainId })
             )
         }
+
         allTweets.sort(compareTweets)
         const trimmed = allTweets.slice(0, maxTotalTweets)
         const grouped = {}
@@ -34,12 +88,23 @@ window.tweetFetcher = (() => {
             if (!grouped[cid]) {
                 grouped[cid] = {
                     tweets: [],
-                    lastScannedBlock: data[cid]?.lastScannedBlock || null,
+                    scannedRanges: (data[cid] && data[cid].scannedRanges) || [],
                 }
             }
             delete tweet._chainId
             grouped[cid].tweets.push(tweet)
         })
+
+        for (const chainId in data) {
+            if (!grouped[chainId]) {
+                grouped[chainId] = {
+                    tweets: [],
+                    scannedRanges:
+                        (data[chainId] && data[chainId].scannedRanges) || [],
+                }
+            }
+        }
+
         try {
             localStorage.setItem(cacheKey, JSON.stringify(grouped))
         } catch (err) {
@@ -47,38 +112,20 @@ window.tweetFetcher = (() => {
         }
     }
 
-    function getFromBlock(chainId, defaultStartBlock) {
-        const cache = loadCache()
-        const chainData = cache[chainId]
-        return chainData?.lastScannedBlock
-            ? chainData.lastScannedBlock + 1
-            : defaultStartBlock
-    }
+    // --- Fetching Logic ---
 
-    async function fetchTweetsForChain({
+    async function fetchTweetsForRange({
         rpcUrl,
         contractAddress,
-        startBlock,
-        chainId,
+        fromBlock,
+        toBlock,
     }) {
         const provider = new ethers.providers.JsonRpcProvider(rpcUrl)
         const contract = new ethers.Contract(contractAddress, abi, provider)
-
-        let latestBlock
-        try {
-            latestBlock = await provider.getBlockNumber()
-        } catch (err) {
-            return { tweets: [], lastScannedBlock: null }
-        }
-
-        // ✅ Ensure fromBlock is not in the future
-        let fromBlock = Math.min(startBlock, latestBlock)
-
         const allTweets = []
-        let finalScannedBlock = fromBlock - 1
 
-        for (let from = fromBlock; from <= latestBlock; from += 10000) {
-            const to = Math.min(from + 9999, latestBlock)
+        for (let from = fromBlock; from <= toBlock; from += 10000) {
+            const to = Math.min(from + 9999, toBlock)
             try {
                 const logs = await provider.getLogs({
                     address: contractAddress,
@@ -100,43 +147,171 @@ window.tweetFetcher = (() => {
                     }
                 })
                 allTweets.push(...parsedLogs)
-                finalScannedBlock = to
             } catch (err) {
-                break
+                console.warn(`Failed to fetch logs from ${from} to ${to}:`, err)
+                return []
             }
         }
-
-        return { tweets: allTweets, lastScannedBlock: finalScannedBlock }
+        return allTweets
     }
 
-    async function smartFetchTweets(chain, previousLastBlock) {
-        const provider = new ethers.providers.JsonRpcProvider(chain.rpcUrl)
-        const latestBlock = await provider.getBlockNumber()
+    async function fetchAndUpdateTweets(chains) {
+        const cache = loadCache()
+        let hasNewTweets = false
 
-        const effectiveLastBlock =
-            previousLastBlock !== undefined && previousLastBlock !== null
-                ? previousLastBlock
-                : chain.startBlock
+        for (const chain of chains) {
+            const chainId = chain.chainId.toString()
+            const provider = new ethers.providers.JsonRpcProvider(chain.rpcUrl)
+            const latestBlock = await provider.getBlockNumber()
 
-        const delta = latestBlock - effectiveLastBlock
+            if (!cache[chainId]) {
+                cache[chainId] = { tweets: [], scannedRanges: [] }
+            }
+            const scannedRanges = cache[chainId].scannedRanges || []
+            const highestRange = scannedRanges.reduce(
+                (max, r) => (r.to > max.to ? r : max),
+                { from: 0, to: 0 }
+            )
+            const lastScannedBlock = highestRange.to || chain.startBlock
 
-        let fromBlock
-        if (!previousLastBlock || delta > 500) {
-            fromBlock = Math.max(latestBlock - 9999, chain.startBlock)
-        } else {
-            fromBlock = previousLastBlock + 1
+            const delta = latestBlock - lastScannedBlock
+            let fetchFrom, fetchTo
+
+            if (delta > 500) {
+                console.log(
+                    `Large gap detected on chain ${chainId}. Fetching latest.`
+                )
+                fetchFrom = Math.max(latestBlock - 9999, chain.startBlock)
+                fetchTo = latestBlock
+            } else if (delta > 0) {
+                fetchFrom = lastScannedBlock + 1
+                fetchTo = latestBlock
+            } else {
+                continue
+            }
+
+            const freshTweets = await fetchTweetsForRange({
+                ...chain,
+                fromBlock: fetchFrom,
+                toBlock: fetchTo,
+            })
+
+            if (freshTweets.length > 0) {
+                hasNewTweets = true
+                const existingTweets =
+                    (cache[chainId] && cache[chainId].tweets) || []
+                const merged = [...existingTweets, ...freshTweets]
+                const unique = Object.values(
+                    merged.reduce((map, tweet) => {
+                        map[`${tweet.chainId}-${tweet.id}`] = tweet
+                        return map
+                    }, {})
+                )
+                cache[chainId].tweets = unique
+            }
+            cache[chainId].scannedRanges.push({ from: fetchFrom, to: fetchTo })
+        }
+        saveCache(cache)
+        if (hasNewTweets) {
+            checkForNewTweets()
         }
 
-        // ✅ Ensure we do not go beyond latest block
-        fromBlock = Math.min(fromBlock, latestBlock)
-
-        const result = await fetchTweetsForChain({
-            ...chain,
-            startBlock: fromBlock,
-        })
-
-        return { ...result, actualLatestBlock: latestBlock }
+        // NEW: The logic to start the backfill process is now wrapped in a condition.
+        if (ENABLE_BACKGROUND_BACKFILL) {
+            startBackgroundBackfill(chains)
+        }
     }
+
+    // --- Background Back-filling Logic ---
+
+    async function startBackgroundBackfill(chains) {
+        if (isBackfilling) return
+        isBackfilling = true
+        console.log('Starting background backfill process...')
+
+        const backfillLoop = async () => {
+            const cache = loadCache()
+            let gapFound = false
+
+            for (const chain of chains) {
+                const chainId = chain.chainId.toString()
+                const chainData = cache[chainId]
+                if (!chainData || !chainData.scannedRanges) continue
+
+                const ranges = mergeRanges(chainData.scannedRanges)
+                let highestGap = { size: 0, from: 0, to: 0 }
+
+                let lastTo = chain.startBlock
+                for (const range of ranges) {
+                    const gapSize = range.from - lastTo
+                    if (gapSize > highestGap.size) {
+                        highestGap = {
+                            size: gapSize,
+                            from: lastTo + 1,
+                            to: range.from - 1,
+                        }
+                    }
+                    lastTo = range.to
+                }
+
+                if (highestGap.size > 1) {
+                    gapFound = true
+                    const from = Math.max(
+                        highestGap.from,
+                        highestGap.to - BACKFILL_CHUNK_SIZE + 1
+                    )
+                    const to = highestGap.to
+                    console.log(
+                        `Back-filling gap on chain ${chainId}: blocks ${from} to ${to}`
+                    )
+
+                    const filledTweets = await fetchTweetsForRange({
+                        ...chain,
+                        fromBlock: from,
+                        toBlock: to,
+                    })
+                    const currentCache = loadCache()
+
+                    if (filledTweets.length > 0) {
+                        const existingTweets =
+                            (currentCache[chainId] &&
+                                currentCache[chainId].tweets) ||
+                            []
+                        const merged = [...existingTweets, ...filledTweets]
+                        const unique = Object.values(
+                            merged.reduce((map, tweet) => {
+                                map[`${tweet.chainId}-${tweet.id}`] = tweet
+                                return map
+                            }, {})
+                        )
+                        currentCache[chainId].tweets = unique
+                    }
+
+                    if (!currentCache[chainId])
+                        currentCache[chainId] = {
+                            tweets: [],
+                            scannedRanges: [],
+                        }
+                    currentCache[chainId].scannedRanges.push({ from, to })
+                    saveCache(currentCache)
+
+                    if (filledTweets.length > 0) {
+                        renderInitialTweets()
+                    }
+                    break
+                }
+            }
+            if (gapFound) {
+                setTimeout(backfillLoop, BACKFILL_INTERVAL)
+            } else {
+                console.log('Back-filling complete. No more gaps found.')
+                isBackfilling = false
+            }
+        }
+        setTimeout(backfillLoop, 5000)
+    }
+
+    // --- Rendering and UI Logic (Unchanged) ---
 
     function compareTweets(a, b) {
         if (b.blockNumber !== a.blockNumber)
@@ -168,9 +343,11 @@ window.tweetFetcher = (() => {
     function refreshAllSortedTweetsFromCache() {
         const cache = loadCache()
         const combined = []
-        Object.values(cache).forEach(chainData =>
-            combined.push(...(chainData.tweets || []))
-        )
+        Object.values(cache).forEach(chainData => {
+            if (chainData && chainData.tweets) {
+                combined.push(...chainData.tweets)
+            }
+        })
         allSortedTweets = combined.sort(compareTweets)
     }
 
@@ -201,8 +378,6 @@ window.tweetFetcher = (() => {
 
     function showPendingTweets() {
         if (pendingNewTweets.length === 0) return
-
-        // Merge and deduplicate
         allSortedTweets = [...pendingNewTweets, ...allSortedTweets]
         allSortedTweets = Object.values(
             allSortedTweets.reduce((map, tweet) => {
@@ -210,66 +385,29 @@ window.tweetFetcher = (() => {
                 return map
             }, {})
         ).sort(compareTweets)
-
-        // Clear entire list (removes "no tweets" msg if present)
-        tweetList.innerHTML = ''
-        currentOffset = 0
-        renderNextBatch()
-
-        // Cleanup
+        renderInitialTweets()
         pendingNewTweets = []
         newPostsBanner.style.display = 'none'
     }
-    async function fetchAndUpdateTweets(chains) {
-        const cache = loadCache()
-        let hasNewTweets = false
-
-        for (const chain of chains) {
-            const chainId = chain.chainId.toString()
-            const previousLastBlock =
-                cache[chainId]?.lastScannedBlock || chain.startBlock
-
-            try {
-                const { tweets: freshTweets, lastScannedBlock } =
-                    await smartFetchTweets(chain, previousLastBlock)
-                if (freshTweets.length > 0) hasNewTweets = true
-                const existing = cache[chainId]?.tweets || []
-                const merged = [...existing, ...freshTweets]
-                const unique = Object.values(
-                    merged.reduce((map, tweet) => {
-                        map[`${tweet.chainId}-${tweet.id}`] = tweet
-                        return map
-                    }, {})
-                )
-                cache[chainId] = {
-                    tweets: unique,
-                    lastScannedBlock: lastScannedBlock ?? previousLastBlock,
-                }
-            } catch (err) {
-                console.warn(`Error scanning chain ${chainId}:`, err)
-            }
-        }
-
-        saveCache(cache)
-        if (hasNewTweets) checkForNewTweets()
-    }
 
     function checkForNewTweets() {
-        const cache = loadCache()
-        const combinedFromCache = []
-        Object.values(cache).forEach(chainData =>
-            combinedFromCache.push(...(chainData.tweets || []))
-        )
-        combinedFromCache.sort(compareTweets)
         const displayedIds = new Set(
             allSortedTweets.map(t => `${t.chainId}-${t.id}`)
         )
+        const cache = loadCache()
+        const combinedFromCache = []
+        Object.values(cache).forEach(chainData => {
+            if (chainData && chainData.tweets) {
+                combinedFromCache.push(...chainData.tweets)
+            }
+        })
+
         const newTweetsFromCache = combinedFromCache.filter(
             t => !displayedIds.has(`${t.chainId}-${t.id}`)
         )
 
         if (newTweetsFromCache.length > 0) {
-            pendingNewTweets = newTweetsFromCache
+            pendingNewTweets = newTweetsFromCache.sort(compareTweets)
             showNewPostsBtn.textContent = `Show ${pendingNewTweets.length} new post${pendingNewTweets.length > 1 ? 's' : ''}`
             newPostsBanner.style.display = 'block'
         }
