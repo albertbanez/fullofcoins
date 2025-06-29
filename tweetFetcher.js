@@ -1,5 +1,4 @@
 window.tweetFetcher = (() => {
-    // NEW: Configuration switch to easily enable or disable the feature.
     const ENABLE_BACKGROUND_BACKFILL = true
 
     const abi = [
@@ -23,30 +22,7 @@ window.tweetFetcher = (() => {
 
     function loadCache() {
         const raw = localStorage.getItem(cacheKey)
-        const data = raw ? JSON.parse(raw) : {}
-
-        const oldCacheRaw = localStorage.getItem('cachedTweets')
-        if (oldCacheRaw && Object.keys(data).length === 0) {
-            console.log('Migrating old cache...')
-            const oldCache = JSON.parse(oldCacheRaw)
-            for (const chainId in oldCache) {
-                if (oldCache[chainId] && oldCache[chainId].lastScannedBlock) {
-                    data[chainId] = {
-                        tweets: oldCache[chainId].tweets || [],
-                        scannedRanges: [
-                            {
-                                from: oldCache[chainId].lastScannedBlock - 9999,
-                                to: oldCache[chainId].lastScannedBlock,
-                            },
-                        ],
-                    }
-                }
-            }
-            localStorage.setItem(cacheKey, JSON.stringify(data))
-            localStorage.removeItem('cachedTweets')
-        }
-
-        return data
+        return raw ? JSON.parse(raw) : {}
     }
 
     function mergeRanges(ranges) {
@@ -216,7 +192,6 @@ window.tweetFetcher = (() => {
             checkForNewTweets()
         }
 
-        // NEW: The logic to start the backfill process is now wrapped in a condition.
         if (ENABLE_BACKGROUND_BACKFILL) {
             startBackgroundBackfill(chains)
         }
