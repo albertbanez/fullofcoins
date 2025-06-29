@@ -307,14 +307,26 @@ window.tweetFetcher = (() => {
         const div = document.createElement('div')
         div.className = 'tweet'
         div.setAttribute('data-tweet-id', `${tweet.chainId}-${tweet.id}`)
-        div.innerHTML = `<strong>${tweet.author}</strong><p>${escapeHTML(
-            tweet.content
-        )}</p><small>⛓ Chain: ${tweet.chainId} • 🕒 ${new Date(
+
+        // Check for image CID and build the image HTML if it exists
+        let imageHtml = ''
+        if (tweet.imageCid && tweet.imageCid.startsWith('Qm')) {
+            const imageUrl = `https://gateway.lighthouse.storage/ipfs/${tweet.imageCid}`
+            imageHtml = `<a href="${imageUrl}" target="_blank" rel="noopener noreferrer">
+                        <img src="${imageUrl}" alt="Tweet image" class="tweet-image" />
+                     </a>`
+        }
+
+        div.innerHTML = `
+        <strong>${tweet.author}</strong>
+        <p>${escapeHTML(tweet.content)}</p>
+        ${imageHtml} 
+        <small>⛓ Chain: ${tweet.chainId} • 🕒 ${new Date(
             tweet.timestamp * 1000
-        ).toLocaleString()}</small>`
+        ).toLocaleString()}</small>
+    `
         return div
     }
-
     function refreshAllSortedTweetsFromCache() {
         const cache = loadCache()
         const combined = []

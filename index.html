@@ -39,45 +39,48 @@
                 </div>
 
                 <!-- Tweet Composer -->
-                <div
-                    id="tweetComposer"
-                    style="
-                        padding: 10px 20px;
-                        background: white;
-                        border-bottom: 1px solid #ddd;
-                    "
-                >
+                <div id="tweetComposer" class="tweet-composer">
                     <textarea
                         id="tweetInput"
                         rows="3"
                         placeholder="What's happening?"
-                        style="width: 100%; padding: 10px; border-radius: 6px"
                     ></textarea>
-                    <button
-                        id="postTweetBtn"
-                        style="
-                            margin-top: 10px;
-                            background: #1da1f2;
-                            color: white;
-                            border: none;
-                            padding: 8px 16px;
-                            border-radius: 20px;
-                            font-weight: bold;
-                            cursor: pointer;
-                        "
-                    >
-                        Tweet
-                    </button>
-                    <div
-                        id="tweetMessage"
-                        style="
-                            margin-top: 6px;
-                            min-height: 18px;
-                            font-size: 0.9em;
-                        "
-                    ></div>
-                </div>
 
+                    <!-- NEW: Image Preview Area -->
+                    <div
+                        id="imagePreviewContainer"
+                        class="image-preview-container"
+                        style="display: none"
+                    >
+                        <button id="removeImageBtn" class="remove-image-btn">
+                            ×
+                        </button>
+                        <img id="imagePreview" src="#" alt="Image preview" />
+                    </div>
+
+                    <!-- Hidden file input -->
+                    <input
+                        type="file"
+                        id="imageInput"
+                        accept="image/jpeg,image/png"
+                        style="display: none"
+                    />
+
+                    <div class="composer-actions">
+                        <!-- NEW: Attach Image Button -->
+                        <button
+                            id="attachImageBtn"
+                            class="attach-btn"
+                            title="Attach image"
+                        >
+                            🖼️
+                        </button>
+
+                        <button id="postTweetBtn">Tweet</button>
+                    </div>
+
+                    <div id="tweetMessage" class="tweet-message"></div>
+                </div>
                 <div id="tweetList"><!-- Tweets will go here --></div>
             </div>
 

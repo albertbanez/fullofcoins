@@ -327,3 +327,73 @@ body.menu-is-open .sidebar-overlay {
 #postTweetBtn:hover {
   background: #0c85d0;
 }
+
+/* --- NEW STYLES FOR IMAGE UPLOAD FUNCTIONALITY --- */
+
+/* Lays out the attach button and the tweet button */
+.composer-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 10px;
+}
+
+/* Styles for the new "Attach Image" button (the picture frame emoji) */
+.attach-btn {
+    background: none;
+    border: none;
+    font-size: 1.5em;
+    cursor: pointer;
+    padding: 0 8px;
+    color: #1da1f2;
+}
+
+/* The container that holds the image preview and the remove button */
+.image-preview-container {
+    position: relative;
+    margin-top: 10px;
+    max-width: 200px; /* Or any size you prefer */
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid #ddd;
+}
+
+/* The preview image itself */
+#imagePreview {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+/* The small 'x' button to remove a selected image */
+.remove-image-btn {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    background: rgba(0, 0, 0, 0.6);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    font-size: 16px;
+    line-height: 24px;
+    text-align: center;
+    cursor: pointer;
+    padding: 0;
+}
+
+/* A style for the message area (e.g., "Uploading...") */
+.tweet-message {
+    margin-top: 6px;
+    min-height: 18px;
+    font-size: 0.9em;
+}
+
+/* The style for the final image displayed in a tweet in the feed */
+.tweet-image {
+    margin-top: 10px;
+    max-width: 100%;
+    border-radius: 12px;
+    border: 1px solid #ddd;
+}
