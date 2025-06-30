@@ -296,9 +296,7 @@ body.menu-is-open .sidebar-overlay {
   background: white;
   padding: 15px;
   border-bottom: 1px solid #ddd;
-  position: sticky;
-  top: 101px; /* below header + new posts banner */
-  z-index: 9;
+  /* The position: sticky, top, and z-index properties have been removed */
 }
 
 #tweetInput {

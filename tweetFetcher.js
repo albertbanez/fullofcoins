@@ -111,12 +111,20 @@ window.tweetFetcher = (() => {
                 })
                 const parsedLogs = logs.map(log => {
                     const parsed = contract.interface.parseLog(log)
-                    const { id, author, content, timestamp, chainId } =
-                        parsed.args
+                    // ADDED imageCid to the destructuring
+                    const {
+                        id,
+                        author,
+                        content,
+                        imageCid,
+                        timestamp,
+                        chainId,
+                    } = parsed.args
                     return {
                         id: id.toString(),
                         author,
                         content,
+                        imageCid, // ADDED imageCid to the returned object
                         timestamp: parseInt(timestamp),
                         chainId: parseInt(chainId),
                         blockNumber: log.blockNumber,
@@ -304,14 +312,19 @@ window.tweetFetcher = (() => {
     }
 
     function createTweetElement(tweet) {
+        console.log(tweet)
         const div = document.createElement('div')
         div.className = 'tweet'
         div.setAttribute('data-tweet-id', `${tweet.chainId}-${tweet.id}`)
 
         // Check for image CID and build the image HTML if it exists
         let imageHtml = ''
-        if (tweet.imageCid && tweet.imageCid.startsWith('Qm')) {
-            const imageUrl = `https://gateway.lighthouse.storage/ipfs/${tweet.imageCid}`
+        if (
+            tweet.imageCid &&
+            (tweet.imageCid.startsWith('Qm') ||
+                tweet.imageCid.startsWith('baf'))
+        ) {
+            const imageUrl = `https://ipfs.io/ipfs/${tweet.imageCid}`
             imageHtml = `<a href="${imageUrl}" target="_blank" rel="noopener noreferrer">
                         <img src="${imageUrl}" alt="Tweet image" class="tweet-image" />
                      </a>`
@@ -320,7 +333,7 @@ window.tweetFetcher = (() => {
         div.innerHTML = `
         <strong>${tweet.author}</strong>
         <p>${escapeHTML(tweet.content)}</p>
-        ${imageHtml} 
+        ${imageHtml}<br>
         <small>⛓ Chain: ${tweet.chainId} • 🕒 ${new Date(
             tweet.timestamp * 1000
         ).toLocaleString()}</small>
