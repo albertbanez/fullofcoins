@@ -4,17 +4,16 @@
 const tweetInput = document.getElementById('tweetInput')
 const postTweetBtn = document.getElementById('postTweetBtn')
 const tweetMessage = document.getElementById('tweetMessage')
-
-// NEW: Image-related DOM Elements
 const attachImageBtn = document.getElementById('attachImageBtn')
 const imageInput = document.getElementById('imageInput')
 const imagePreviewContainer = document.getElementById('imagePreviewContainer')
 const imagePreview = document.getElementById('imagePreview')
 const removeImageBtn = document.getElementById('removeImageBtn')
 
-// --- State Variables ---
+// --- State and Config ---
 let selectedFile = null
-let uploadedImageCid = null
+const MAX_FILE_SIZE_MB = 25
+const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
 
 // --- Full ABI (Unchanged) ---
 const tweetAbi = [
@@ -96,21 +95,197 @@ const tweetAbi = [
 
 // --- Helper Functions ---
 function showInlineMessage(message, isSuccess = true) {
+    /* ... same as before ... */
+}
+function resetComposer() {
+    /* ... same as before ... */
+}
+function resizeImage(file, maxWidth = 800, maxHeight = 800) {
+    /* ... same as before ... */
+}
+
+async function processAndUploadFile(file) {
+    let fileToUpload = file
+    if (file.type === 'image/jpeg' || file.type === 'image/png') {
+        showInlineMessage('Resizing image...', true)
+        try {
+            fileToUpload = await resizeImage(file)
+        } catch (err) {
+            showInlineMessage('Image resize failed.', false)
+            return null
+        }
+    }
+
+    showInlineMessage('Uploading to IPFS...', true)
+    const formData = new FormData()
+    formData.append('file', fileToUpload)
+
+    try {
+        const res = await fetch(
+            'https://foc-lighthouse-uploader.fullofcoins.workers.dev',
+            { method: 'POST', body: formData }
+        )
+        const data = await res.json()
+        if (data.cid) {
+            return `${data.cid}|${file.type}`
+        } else {
+            showInlineMessage('Upload failed.', false)
+            return null
+        }
+    } catch (err) {
+        showInlineMessage('Network error during upload.', false)
+        return null
+    }
+}
+
+// --- Event Listeners ---
+attachImageBtn.addEventListener('click', () => {
+    imageInput.click()
+})
+
+imageInput.addEventListener('change', event => {
+    const file = event.target.files[0]
+    if (!file) return
+
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+        alert(`File is too large. Max size is ${MAX_FILE_SIZE_MB}MB.`)
+        imageInput.value = ''
+        return
+    }
+    selectedFile = file
+    imagePreview.src = URL.createObjectURL(file)
+    imagePreviewContainer.style.display = 'block'
+})
+
+removeImageBtn.addEventListener('click', () => {
+    selectedFile = null
+    imageInput.value = ''
+    imagePreviewContainer.style.display = 'none'
+    imagePreview.src = '#'
+})
+
+postTweetBtn.addEventListener('click', async () => {
+    const tweetText = tweetInput.value.trim()
+    if (!tweetText && !selectedFile) {
+        showInlineMessage('Tweet cannot be empty.', false)
+        return
+    }
+    if (!window.ethereum || !window.signer) {
+        showInlineMessage('Please connect your wallet first.', false)
+        return
+    }
+
+    postTweetBtn.disabled = true
+    let finalCidString = ''
+
+    if (selectedFile) {
+        const result = await processAndUploadFile(selectedFile)
+        if (!result) {
+            postTweetBtn.disabled = false
+            return
+        }
+        finalCidString = result
+    }
+
+    showInlineMessage('Preparing transaction...', true)
+    const provider = new ethers.providers.Web3Provider(window.ethereum)
+    const { chainId } = await provider.getNetwork()
+    const targetChain = (window.chains || []).find(c => c.chainId === chainId)
+
+    if (!targetChain) {
+        showInlineMessage(`Unsupported network. Please switch.`, false)
+        postTweetBtn.disabled = false
+        return
+    }
+
+    // ==========================================================
+    // DEBUGGER LOGS
+    // ==========================================================
+    console.log('--- DEBUGGING TRANSACTION ---')
+    console.log('Connected to Chain ID:', chainId)
+    console.log('Using Target Chain Config:', targetChain)
+    console.log('Contract Address:', targetChain.contractAddress)
+    console.log('Arguments to be sent:')
+    console.log(`1. _content (string): "${tweetText}"`)
+    console.log(`2. _imageCid (string): "${finalCidString}"`)
+    console.log('Signer object:', window.signer)
+    // ==========================================================
+
+    try {
+        const signer = provider.getSigner()
+        const contract = new ethers.Contract(
+            targetChain.contractAddress,
+            tweetAbi,
+            signer
+        )
+
+        showInlineMessage('Please confirm in wallet...', true)
+
+        // ==========================================================
+        // "DRY RUN" CHECK
+        // This simulates the transaction to see if it will fail on-chain.
+        // ==========================================================
+        try {
+            console.log('Attempting a dry run with callStatic...')
+            await contract.callStatic.postTweet(tweetText, finalCidString)
+            console.log(
+                '%c✅ Dry run successful. The transaction should not revert.',
+                'color: green; font-weight: bold;'
+            )
+        } catch (dryRunError) {
+            console.error(
+                '%c❌ Dry run FAILED. The transaction would revert on-chain.',
+                'color: red; font-weight: bold;'
+            )
+            console.error('Reason for failure:', dryRunError)
+            // Extract a more human-readable message if available
+            const reason =
+                dryRunError.reason ||
+                dryRunError.data?.message ||
+                dryRunError.message
+            showInlineMessage(`Error: ${reason}`, false)
+            postTweetBtn.disabled = false
+            return // Stop execution here
+        }
+        // ==========================================================
+
+        console.log('Dry run passed. Sending actual transaction...')
+        const tx = await contract.postTweet(tweetText, finalCidString)
+
+        showInlineMessage('Posting tweet to blockchain...', true)
+        await tx.wait()
+
+        showInlineMessage('Tweet posted ✅', true)
+        resetComposer()
+        setTimeout(() => {
+            tweetMessage.textContent = ''
+        }, 5000)
+    } catch (err) {
+        // This catch block will now likely handle user rejection from MetaMask
+        console.error('Transaction failed (likely user rejection):', err)
+        let userMessage = 'Failed to post tweet ❌'
+        if (err.code === 4001) {
+            // MetaMask user rejected the transaction
+            userMessage = 'Transaction rejected in wallet.'
+        }
+        showInlineMessage(userMessage, false)
+        postTweetBtn.disabled = false
+    }
+})
+
+// Helper function implementations (unchanged)
+function showInlineMessage(message, isSuccess = true) {
     tweetMessage.textContent = message
     tweetMessage.style.color = isSuccess ? '#28a745' : '#dc3545'
 }
-
 function resetComposer() {
     tweetInput.value = ''
     selectedFile = null
-    uploadedImageCid = null
-    imageInput.value = '' // Reset file input
+    imageInput.value = ''
     imagePreviewContainer.style.display = 'none'
     imagePreview.src = '#'
     postTweetBtn.disabled = false
 }
-
-// NEW: Logic copied from your upload.html and adapted for our use
 function resizeImage(file, maxWidth = 800, maxHeight = 800) {
     return new Promise((resolve, reject) => {
         const img = new Image()
@@ -143,139 +318,3 @@ function resizeImage(file, maxWidth = 800, maxHeight = 800) {
         img.src = url
     })
 }
-
-async function uploadFileAndGetCid(file) {
-    showInlineMessage('Resizing image...', true)
-    let resizedFile
-    try {
-        resizedFile = await resizeImage(file)
-    } catch (err) {
-        showInlineMessage('Image resize failed.', false)
-        console.error('Resize error:', err)
-        return null
-    }
-
-    showInlineMessage('Uploading image to IPFS...', true)
-    const formData = new FormData()
-    formData.append('file', resizedFile)
-
-    try {
-        const res = await fetch(
-            'https://foc-lighthouse-uploader.fullofcoins.workers.dev',
-            {
-                method: 'POST',
-                body: formData,
-            }
-        )
-        const data = await res.json()
-        if (data.cid) {
-            return data.cid
-        } else {
-            showInlineMessage('Image upload failed.', false)
-            console.error('Upload failed:', data)
-            return null
-        }
-    } catch (err) {
-        showInlineMessage('Network error during upload.', false)
-        console.error('Upload error:', err)
-        return null
-    }
-}
-
-// --- Event Listeners ---
-attachImageBtn.addEventListener('click', () => {
-    imageInput.click()
-})
-
-imageInput.addEventListener('change', event => {
-    const file = event.target.files[0]
-    if (file) {
-        selectedFile = file
-        imagePreview.src = URL.createObjectURL(file)
-        imagePreviewContainer.style.display = 'block'
-    }
-})
-
-removeImageBtn.addEventListener('click', () => {
-    selectedFile = null
-    imageInput.value = '' // Important to allow re-selecting the same file
-    imagePreviewContainer.style.display = 'none'
-    imagePreview.src = '#'
-})
-
-postTweetBtn.addEventListener('click', async () => {
-    const tweetText = tweetInput.value.trim()
-    if (!tweetText && !selectedFile) {
-        showInlineMessage('Tweet cannot be empty.', false)
-        return
-    }
-
-    if (!window.ethereum || !window.signer) {
-        showInlineMessage('Please connect your wallet first.', false)
-        return
-    }
-
-    postTweetBtn.disabled = true
-
-    // 1. Handle Image Upload (if any)
-    if (selectedFile) {
-        const cid = await uploadFileAndGetCid(selectedFile)
-        if (!cid) {
-            postTweetBtn.disabled = false // Re-enable on upload failure
-            return // Stop if upload fails
-        }
-        uploadedImageCid = cid
-    }
-
-    // 2. Handle Blockchain Transaction
-    showInlineMessage('Preparing transaction...', true)
-
-    let currentNetwork
-    try {
-        const provider = new ethers.providers.Web3Provider(window.ethereum)
-        currentNetwork = await provider.getNetwork()
-    } catch (err) {
-        showInlineMessage('Failed to detect network.', false)
-        resetComposer()
-        return
-    }
-
-    const targetChain = (window.chains || []).find(
-        c => c.chainId === currentNetwork.chainId
-    )
-    if (!targetChain) {
-        showInlineMessage(`Unsupported network. Please switch.`, false)
-        resetComposer()
-        return
-    }
-
-    try {
-        const provider = new ethers.providers.Web3Provider(window.ethereum)
-        const signer = provider.getSigner()
-        const contract = new ethers.Contract(
-            targetChain.contractAddress,
-            tweetAbi,
-            signer
-        )
-
-        showInlineMessage('Please confirm in wallet...', true)
-        const tx = await contract.postTweet(tweetText, uploadedImageCid || '')
-
-        showInlineMessage('Posting tweet to blockchain...', true)
-        await tx.wait()
-
-        showInlineMessage('Tweet posted ✅', true)
-        resetComposer() // Clean up UI on success
-        setTimeout(() => {
-            tweetMessage.textContent = ''
-        }, 5000)
-    } catch (err) {
-        console.error('Transaction failed:', err)
-        let userMessage = 'Failed to post tweet ❌'
-        if (err.message && err.message.includes('Cooldown')) {
-            userMessage = 'Cooldown active. Please wait.'
-        }
-        showInlineMessage(userMessage, false)
-        postTweetBtn.disabled = false // Only re-enable button on error, not the whole composer
-    }
-})

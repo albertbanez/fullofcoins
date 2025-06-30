@@ -457,3 +457,12 @@ body.menu-is-open .sidebar-overlay {
     color: #aab8c2;
     background-color: transparent;
 }
+
+/* Style for videos in the feed */
+.tweet-video {
+    margin-top: 10px;
+    max-width: 100%;
+    border-radius: 12px;
+    border: 1px solid #ddd;
+    background-color: #000; /* Add a black background for videos */
+}
