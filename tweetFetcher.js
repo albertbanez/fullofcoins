@@ -340,37 +340,21 @@ window.tweetFetcher = (() => {
         div.className = 'tweet'
         div.setAttribute('data-tweet-id', `${tweet.chainId}-${tweet.id}`)
 
-        let mediaHtml = ''
-        const rawCidString = tweet.imageCid || ''
-
-        // NEW: Parse the structured CID string "cid|mediaType"
-        const parts = rawCidString.split('|')
-        const cid = parts[0]
-        const mediaType = parts[1] || (cid ? 'image/jpeg' : '') // Default to image for old tweets
-
-        if (cid && (cid.startsWith('Qm') || cid.startsWith('baf'))) {
-            const mediaUrl = `https://ipfs.io/ipfs/${cid}`
-
-            if (mediaType.startsWith('video/')) {
-                // Render a <video> tag
-                mediaHtml = `<video 
-                            src="${mediaUrl}" 
-                            class="tweet-video" 
-                            controls 
-                            loop 
-                            muted 
-                            autoplay 
-                            playsinline>
-                         </video>`
-            } else if (mediaType.startsWith('image/')) {
-                // Render an <img> tag (this handles jpg, png, and gif)
-                mediaHtml = `<a href="${mediaUrl}" target="_blank" rel="noopener noreferrer">
-                            <img src="${mediaUrl}" alt="Tweet media" class="tweet-image" />
-                         </a>`
-            }
+        let imageHtml = ''
+        // Revert to the simple check for a valid image CID.
+        // We no longer need to parse for media type.
+        if (
+            tweet.imageCid &&
+            (tweet.imageCid.startsWith('Qm') ||
+                tweet.imageCid.startsWith('baf'))
+        ) {
+            const imageUrl = `https://ipfs.io/ipfs/${tweet.imageCid}`
+            imageHtml = `<a href="${imageUrl}" target="_blank" rel="noopener noreferrer">
+                        <img src="${imageUrl}" alt="Tweet image" class="tweet-image" />
+                     </a>`
         }
 
-        // ... (rest of the function for chainName, date, and like button is the same)
+        // The rest of the function remains the same
         const chainName = chainInfoMap.get(tweet.chainId)?.name || tweet.chainId
         const date = new Date(tweet.timestamp * 1000)
         const formattedDate = new Intl.DateTimeFormat('en-US', {
@@ -396,10 +380,10 @@ window.tweetFetcher = (() => {
         div.innerHTML = `
         <strong>${tweet.author}</strong>
         <p>${escapeHTML(tweet.content)}</p>
-        ${mediaHtml} 
+        ${imageHtml}
         <small>⛓ Chain: ${chainName} • 🕒 ${finalDateTimeString}</small>
         <div class="tweet-actions">
-             <button class="like-btn ${userHasLiked ? 'liked' : ''}" data-tweet-id="${tweet.id}" data-chain-id="${tweet.chainId}">
+            <button class="like-btn ${userHasLiked ? 'liked' : ''}" data-tweet-id="${tweet.id}" data-chain-id="${tweet.chainId}">
                 <span class="icon">${userHasLiked ? '❤️' : '🤍'}</span>
                 <span class="count">${tweet.likeCount || 0}</span>
             </button>
@@ -407,7 +391,7 @@ window.tweetFetcher = (() => {
     `
 
         return div
-    } // --- UI and Init Functions (mostly unchanged) ---
+    }
     function refreshAllSortedTweetsFromCache() {
         const cache = loadCache()
         const combined = []
