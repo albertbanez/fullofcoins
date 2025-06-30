@@ -395,3 +395,65 @@ body.menu-is-open .sidebar-overlay {
     border-radius: 12px;
     border: 1px solid #ddd;
 }
+
+/* --- NEW STYLES FOR LIKE FUNCTIONALITY --- */
+
+.tweet-actions {
+    margin-top: 15px;
+    padding-top: 10px;
+    border-top: 1px solid #eee;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.like-btn {
+    background: none;
+    border: none;
+    padding: 5px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    color: #657786; /* Twitter's 'gray' color */
+    border-radius: 20px;
+    transition: all 0.2s ease-in-out;
+}
+
+.like-btn:hover {
+    background-color: #fce8f2; /* Light pink background on hover */
+    color: #e0245e; /* Twitter's 'like' red color */
+}
+
+.like-btn .icon {
+    font-size: 18px;
+    transition: transform 0.2s ease;
+}
+
+.like-btn:hover .icon {
+    transform: scale(1.2);
+}
+
+/* Style for a tweet that the user HAS liked */
+.like-btn.liked {
+    color: #e0245e; /* Red color */
+    font-weight: bold;
+}
+
+.like-btn.liked .icon {
+    animation: heart-pop 0.5s ease;
+}
+
+@keyframes heart-pop {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.4); }
+    100% { transform: scale(1); }
+}
+
+/* Disable button while transaction is pending */
+.like-btn:disabled {
+    cursor: not-allowed;
+    color: #aab8c2;
+    background-color: transparent;
+}
