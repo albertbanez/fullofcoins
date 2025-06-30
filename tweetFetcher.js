@@ -1,4 +1,15 @@
 window.tweetFetcher = (() => {
+    let chainInfoMap = new Map()
+    const dateTimeFormatOptions = {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: 'numeric',
+        second: 'numeric',
+        hour12: true,
+    }
+
     const ENABLE_BACKGROUND_BACKFILL = true
 
     const abi = [
@@ -312,13 +323,12 @@ window.tweetFetcher = (() => {
     }
 
     function createTweetElement(tweet) {
-        console.log(tweet)
         const div = document.createElement('div')
         div.className = 'tweet'
         div.setAttribute('data-tweet-id', `${tweet.chainId}-${tweet.id}`)
 
-        // Check for image CID and build the image HTML if it exists
         let imageHtml = ''
+        // Use the robust check for modern (bafy...) or legacy (Qm...) CIDs
         if (
             tweet.imageCid &&
             (tweet.imageCid.startsWith('Qm') ||
@@ -327,16 +337,38 @@ window.tweetFetcher = (() => {
             const imageUrl = `https://ipfs.io/ipfs/${tweet.imageCid}`
             imageHtml = `<a href="${imageUrl}" target="_blank" rel="noopener noreferrer">
                         <img src="${imageUrl}" alt="Tweet image" class="tweet-image" />
-                     </a>`
+                     </a><br>`
         }
+
+        // --- MODIFIED LINES FOR PRECISION ---
+        // Look up the chain name from our map. Fall back to the ID if not found.
+        const chainName = chainInfoMap.get(tweet.chainId)?.name || tweet.chainId
+
+        // Create the date object
+        const date = new Date(tweet.timestamp * 1000)
+
+        // Manually format the date and time parts to get the exact output
+        const formattedDate = new Intl.DateTimeFormat('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+        }).format(date) // "June 29, 2025"
+
+        const formattedTime = new Intl.DateTimeFormat('en-US', {
+            hour: 'numeric',
+            minute: 'numeric',
+            second: 'numeric',
+            hour12: true,
+        }).format(date) // "12:14:00 PM"
+
+        const finalDateTimeString = `${formattedDate}, ${formattedTime}` // "June 29, 2025, 12:14:00 PM"
+        // --- END MODIFIED LINES ---
 
         div.innerHTML = `
         <strong>${tweet.author}</strong>
         <p>${escapeHTML(tweet.content)}</p>
-        ${imageHtml}<br>
-        <small>⛓ Chain: ${tweet.chainId} • 🕒 ${new Date(
-            tweet.timestamp * 1000
-        ).toLocaleString()}</small>
+        ${imageHtml}
+        <small>⛓ Chain: ${chainName} • 🕒 ${finalDateTimeString}</small>
     `
         return div
     }
@@ -414,6 +446,7 @@ window.tweetFetcher = (() => {
     }
 
     function init() {
+        chainInfoMap = new Map((window.chains || []).map(c => [c.chainId, c]))
         newPostsBanner = document.getElementById('newPostsBanner')
         showNewPostsBtn = document.getElementById('showNewPostsBtn')
         tweetList = document.getElementById('tweetList')
