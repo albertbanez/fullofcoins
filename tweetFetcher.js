@@ -1,15 +1,6 @@
 // tweetFetcher.js (Complete with Follow Logic)
 
 window.tweetFetcher = (() => {
-    // MODIFIED: The ABI now includes all five event types.
-    const abi = [
-        'event TweetPosted(uint256 id, address indexed author, string content, string imageCid, uint256 timestamp, uint256 chainId)',
-        'event TweetLiked(uint256 indexed tweetId, address indexed user)',
-        'event TweetUnliked(uint256 indexed tweetId, address indexed user)',
-        'event UserFollowed(address indexed follower, address indexed followed)',
-        'event UserUnfollowed(address indexed follower, address indexed followed)',
-    ]
-
     let chainInfoMap = new Map()
     const ENABLE_BACKGROUND_BACKFILL = true
     const tweetCacheKey = 'cachedTweets_v3'
@@ -137,7 +128,11 @@ window.tweetFetcher = (() => {
         toBlock,
     }) {
         const provider = new ethers.providers.JsonRpcProvider(rpcUrl)
-        const contract = new ethers.Contract(contractAddress, abi, provider)
+        const contract = new ethers.Contract(
+            contractAddress,
+            window.fullTweetContractAbi,
+            provider
+        )
         const allEvents = []
         for (let from = fromBlock; from <= toBlock; from += 10000) {
             const to = Math.min(from + 9999, toBlock)
