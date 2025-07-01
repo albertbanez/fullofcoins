@@ -404,6 +404,40 @@ window.tweetFetcher = (() => {
         const div = document.createElement('div')
         div.className = 'tweet'
         div.setAttribute('data-tweet-id', `${tweet.chainId}-${tweet.id}`)
+
+        // --- Start Debugging ---
+        if (tweet.id == '0') {
+            // Only log once for the first tweet to avoid spam
+            console.log(
+                '--- DEBUGGING FOLLOW BUTTON (Tweet ID: ' + tweet.id + ') ---'
+            )
+            console.log(
+                '1. Is wallet connected? window.connectedAddress =',
+                window.connectedAddress
+            )
+            console.log(
+                '2. Is tweet author different from me? (tweet.author vs. my address)'
+            )
+            console.log('   - Tweet Author:', tweet.author.toLowerCase())
+            console.log(
+                '   - My Address:',
+                window.connectedAddress
+                    ? window.connectedAddress.toLowerCase()
+                    : 'Not Connected'
+            )
+            console.log('3. Is `userFollows` map populated?', userFollows)
+            const myProfile = userFollows.get(window.connectedAddress)
+            console.log('4. My specific follow profile:', myProfile)
+            if (myProfile) {
+                console.log(
+                    '5. Am I following this specific author?',
+                    myProfile.following.has(tweet.author)
+                )
+            }
+            console.log('-------------------------------------------------')
+        }
+        // --- End Debugging ---
+
         let imageHtml = ''
         if (
             tweet.imageCid &&
@@ -413,6 +447,7 @@ window.tweetFetcher = (() => {
             const imageUrl = `https://ipfs.io/ipfs/${tweet.imageCid}`
             imageHtml = `<a href="${imageUrl}" target="_blank" rel="noopener noreferrer"><img src="${imageUrl}" alt="Tweet image" class="tweet-image" /></a>`
         }
+
         const chainName = chainInfoMap.get(tweet.chainId)?.name || tweet.chainId
         const date = new Date(tweet.timestamp * 1000)
         const formattedDate = new Intl.DateTimeFormat('en-US', {
@@ -427,6 +462,7 @@ window.tweetFetcher = (() => {
             hour12: true,
         }).format(date)
         const finalDateTimeString = `${formattedDate}, ${formattedTime}`
+
         let userHasLiked = false
         if (window.connectedAddress) {
             const likers = new Set(
@@ -434,6 +470,7 @@ window.tweetFetcher = (() => {
             )
             userHasLiked = likers.has(window.connectedAddress.toLowerCase())
         }
+
         let showFollowButton = false
         let isFollowing = false
         if (
@@ -446,14 +483,33 @@ window.tweetFetcher = (() => {
                 isFollowing = myProfile.following.has(tweet.author)
             }
         }
+
         const followButtonHtml = showFollowButton
-            ? `<button class="follow-btn ${isFollowing ? 'following' : ''}" data-author="${tweet.author}" data-chain-id="${tweet.chainId}"><span>${isFollowing ? 'Following' : 'Follow'}</span></button>`
+            ? `<button class="follow-btn ${isFollowing ? 'following' : ''}" data-author="${tweet.author}" data-chain-id="${tweet.chainId}">
+             <span>${isFollowing ? 'Following' : 'Follow'}</span>
+           </button>`
             : ''
-        const likeButtonHtml = `<button class="like-btn ${userHasLiked ? 'liked' : ''}" data-tweet-id="${tweet.id}" data-chain-id="${tweet.chainId}"><span class="icon">${userHasLiked ? '❤️' : '🤍'}</span><span class="count">${tweet.likeCount || 0}</span></button>`
-        div.innerHTML = `<div class="tweet-header"><strong class="tweet-author">${tweet.author}</strong>${followButtonHtml}</div><p>${escapeHTML(tweet.content)}</p>${imageHtml}<small>⛓ Chain: ${chainName} • 🕒 ${finalDateTimeString}</small><div class="tweet-actions">${likeButtonHtml}</div>`
+
+        const likeButtonHtml = `<button class="like-btn ${userHasLiked ? 'liked' : ''}" data-tweet-id="${tweet.id}" data-chain-id="${tweet.chainId}">
+                              <span class="icon">${userHasLiked ? '❤️' : '🤍'}</span>
+                              <span class="count">${tweet.likeCount || 0}</span>
+                            </button>`
+
+        div.innerHTML = `
+        <div class="tweet-header">
+            <strong class="tweet-author">${tweet.author}</strong>
+            ${followButtonHtml}
+        </div>
+        <p>${escapeHTML(tweet.content)}</p>
+        ${imageHtml}
+        <small>⛓ Chain: ${chainName} • 🕒 ${finalDateTimeString}</small>
+        <div class="tweet-actions">
+            ${likeButtonHtml}
+        </div>
+    `
+
         return div
     }
-
     // --- UI and Init Functions ---
     function refreshAllSortedTweetsFromCache() {
         const cache = loadTweetCache()
@@ -552,5 +608,6 @@ window.tweetFetcher = (() => {
         loadCachedTweets: renderInitialTweets,
         fetchAndUpdateTweets,
         checkForNewTweets,
+        refreshUI: renderInitialTweets, // NEW: Expose the render function
     }
 })()

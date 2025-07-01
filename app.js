@@ -9,7 +9,7 @@ let signer
 let connectedAddress = null
 
 if (window.ethereum) {
-    window.ethereum.on('accountsChanged', async (accounts) => {
+    window.ethereum.on('accountsChanged', async accounts => {
         if (accounts.length > 0) {
             try {
                 provider = new ethers.providers.Web3Provider(window.ethereum)
@@ -141,17 +141,27 @@ metamaskBtn.addEventListener('click', async () => {
 function updateUIAfterConnect(address) {
     connectBtn.textContent = `${shortenAddress(address)} (Logout)`
     walletAddressDiv.textContent = `Connected: ${address}`
-}
+    window.connectedAddress = address // IMPORTANT: Make sure this line exists!
 
+    // NEW: Tell the tweet fetcher to re-render the UI
+    if (window.tweetFetcher) {
+        window.tweetFetcher.refreshUI()
+    }
+}
 function logoutWallet() {
     connectedAddress = null
+    window.connectedAddress = null // Also clear the global variable
     connectBtn.textContent = 'Connect Wallet'
     walletAddressDiv.textContent = ''
     localStorage.removeItem('walletConnected')
     document.body.classList.remove('modal-open')
     showToast('Wallet disconnected 🔌', false)
-}
 
+    // NEW: Tell the tweet fetcher to re-render the UI
+    if (window.tweetFetcher) {
+        window.tweetFetcher.refreshUI()
+    }
+}
 function shortenAddress(address) {
     return address.slice(0, 6) + '...' + address.slice(-4)
 }
