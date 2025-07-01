@@ -14,84 +14,6 @@ const removeImageBtn = document.getElementById('removeImageBtn')
 let selectedFile = null
 let uploadedImageCid = null
 
-// --- Full ABI (Unchanged) ---
-const tweetAbi = [
-    {
-        anonymous: false,
-        inputs: [
-            {
-                indexed: false,
-                internalType: 'uint256',
-                name: 'id',
-                type: 'uint256',
-            },
-            {
-                indexed: true,
-                internalType: 'address',
-                name: 'author',
-                type: 'address',
-            },
-            {
-                indexed: false,
-                internalType: 'string',
-                name: 'content',
-                type: 'string',
-            },
-            {
-                indexed: false,
-                internalType: 'string',
-                name: 'imageCid',
-                type: 'string',
-            },
-            {
-                indexed: false,
-                internalType: 'uint256',
-                name: 'timestamp',
-                type: 'uint256',
-            },
-            {
-                indexed: false,
-                internalType: 'uint256',
-                name: 'chainId',
-                type: 'uint256',
-            },
-        ],
-        name: 'TweetPosted',
-        type: 'event',
-    },
-    {
-        inputs: [],
-        name: 'COOLDOWN_TIME',
-        outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
-        stateMutability: 'view',
-        type: 'function',
-    },
-    {
-        inputs: [{ internalType: 'address', name: '', type: 'address' }],
-        name: 'lastPostTime',
-        outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
-        stateMutability: 'view',
-        type: 'function',
-    },
-    {
-        inputs: [],
-        name: 'nextTweetId',
-        outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
-        stateMutability: 'view',
-        type: 'function',
-    },
-    {
-        inputs: [
-            { internalType: 'string', name: '_content', type: 'string' },
-            { internalType: 'string', name: '_imageCid', type: 'string' },
-        ],
-        name: 'postTweet',
-        outputs: [],
-        stateMutability: 'nonpayable',
-        type: 'function',
-    },
-]
-
 // --- Helper Functions ---
 function showInlineMessage(message, isSuccess = true) {
     tweetMessage.textContent = message
@@ -238,7 +160,7 @@ postTweetBtn.addEventListener('click', async () => {
         const signer = provider.getSigner()
         const contract = new ethers.Contract(
             targetChain.contractAddress,
-            tweetAbi,
+            window.fullTweetContractAbi,
             signer
         )
 

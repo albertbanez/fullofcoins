@@ -458,3 +458,61 @@ body.menu-is-open .sidebar-overlay {
     background-color: transparent;
 }
 
+/* --- NEW STYLES FOR FOLLOW FUNCTIONALITY --- */
+
+.tweet-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px; /* Add some space below the header */
+}
+
+.tweet-author {
+    font-weight: bold;
+    color: #14171a;
+}
+
+.follow-btn {
+    padding: 4px 12px;
+    font-size: 13px;
+    font-weight: bold;
+    border-radius: 9999px; /* Pill shape */
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+/* Default "Follow" state */
+.follow-btn {
+    background-color: #0f1419; /* Black */
+    color: white;
+    border: 1px solid #0f1419;
+}
+.follow-btn:hover {
+    background-color: #272c30;
+}
+
+/* "Following" state */
+.follow-btn.following {
+    background-color: transparent;
+    color: #0f1419;
+    border: 1px solid #cfd9de;
+}
+
+.follow-btn.following:hover {
+    background-color: #fee8e8; /* Light red on hover */
+    color: #f4212e;
+    border-color: #f7a7a7;
+}
+
+/* Change text on hover for "Following" button */
+.follow-btn.following:hover::after {
+    content: 'Unfollow';
+    display: inline;
+}
+.follow-btn.following span {
+    display: inline;
+}
+.follow-btn.following:hover span {
+    display: none;
+}
