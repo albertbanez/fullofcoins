@@ -1,20 +1,22 @@
+// tweetFetcher.js (Final, Complete Version)
+
 window.tweetFetcher = (() => {
     // --- State and Config ---
     let chainInfoMap = new Map()
     const ENABLE_BACKGROUND_BACKFILL = true
-    const tweetCacheKey = 'cachedTweets_v5'
-    const followCacheKey = 'cachedFollows_v5'
+    const tweetCacheKey = 'cachedTweets_v3'
+    const followCacheKey = 'cachedFollows_v1'
 
-    let allSortedTweets = [] // Master list of all tweets from all chains
-    let userFollows = new Map() // In-memory store for who follows whom
-    let currentFeedTweets = [] // This holds the tweets for the *currently visible* feed.
-    let currentActiveTab = 'forYou' // Can be 'forYou' or 'following'
+    let allSortedTweets = []
+    let userFollows = new Map()
+    let currentFeedTweets = []
+    let currentActiveTab = 'forYou'
 
-    // MODIFIED: Removed unused variables
     let currentOffset = 0
     const BATCH_SIZE = 10
     const BACKFILL_CHUNK_SIZE = 5000
     const BACKFILL_INTERVAL = 10000
+    let newPostsBanner = null
     let showNewPostsBtn = null
     let tweetList = null
     let isBackfilling = false
@@ -229,7 +231,7 @@ window.tweetFetcher = (() => {
     async function fetchAndUpdateTweets(chains) {
         const tweetCache = loadTweetCache()
         const followCache = loadFollowCache()
-        let hasNewTweets = false
+        let hasNewData = false
         for (const chain of chains) {
             const chainIdStr = chain.chainId.toString()
             const provider = new ethers.providers.JsonRpcProvider(chain.rpcUrl)
@@ -259,8 +261,7 @@ window.tweetFetcher = (() => {
                 toBlock: fetchTo,
             })
             if (freshEvents.length > 0) {
-                if (freshEvents.some(e => e.name === 'TweetPosted'))
-                    hasNewTweets = true
+                hasNewData = true
                 const existingTweets = (
                     tweetCache[chainIdStr]?.tweets || []
                 ).map(t => ({ ...t, likers: new Set(t.likers) }))
@@ -283,11 +284,8 @@ window.tweetFetcher = (() => {
         }
         saveTweetCache(tweetCache)
         saveFollowCache(userFollows)
-        if (hasNewTweets) {
-            const banner = document.getElementById('newPostsBanner')
-            if (banner) {
-                banner.style.display = 'block'
-            }
+        if (hasNewData) {
+            checkForNewTweets()
         }
         if (ENABLE_BACKGROUND_BACKFILL) startBackgroundBackfill(chains)
     }
@@ -396,7 +394,6 @@ window.tweetFetcher = (() => {
         const div = document.createElement('div')
         div.className = 'tweet'
         div.setAttribute('data-tweet-id', `${tweet.chainId}-${tweet.id}`)
-
         let imageHtml = ''
         if (
             tweet.imageCid &&
@@ -406,7 +403,6 @@ window.tweetFetcher = (() => {
             const imageUrl = `https://ipfs.io/ipfs/${tweet.imageCid}`
             imageHtml = `<a href="${imageUrl}" target="_blank" rel="noopener noreferrer"><img src="${imageUrl}" alt="Tweet image" class="tweet-image" /></a>`
         }
-
         const chainName = chainInfoMap.get(tweet.chainId)?.name || tweet.chainId
         const date = new Date(tweet.timestamp * 1000)
         const formattedDate = new Intl.DateTimeFormat('en-US', {
@@ -421,7 +417,6 @@ window.tweetFetcher = (() => {
             hour12: true,
         }).format(date)
         const finalDateTimeString = `${formattedDate}, ${formattedTime}`
-
         let userHasLiked = false
         if (window.connectedAddress) {
             const likers = new Set(
@@ -429,7 +424,6 @@ window.tweetFetcher = (() => {
             )
             userHasLiked = likers.has(window.connectedAddress.toLowerCase())
         }
-
         let showFollowButton = false
         let isFollowing = false
         if (
@@ -442,14 +436,11 @@ window.tweetFetcher = (() => {
                 isFollowing = myProfile.following.has(tweet.author)
             }
         }
-
         const followButtonHtml = showFollowButton
             ? `<button class="follow-btn ${isFollowing ? 'following' : ''}" data-author="${tweet.author}" data-chain-id="${tweet.chainId}"><span>${isFollowing ? 'Following' : 'Follow'}</span></button>`
             : ''
         const likeButtonHtml = `<button class="like-btn ${userHasLiked ? 'liked' : ''}" data-tweet-id="${tweet.id}" data-chain-id="${tweet.chainId}"><span class="icon">${userHasLiked ? '❤️' : '🤍'}</span><span class="count">${tweet.likeCount || 0}</span></button>`
-
         div.innerHTML = `<div class="tweet-header"><strong class="tweet-author">${tweet.author}</strong>${followButtonHtml}</div><p>${escapeHTML(tweet.content)}</p>${imageHtml}<small>⛓ Chain: ${chainName} • 🕒 ${finalDateTimeString}</small><div class="tweet-actions">${likeButtonHtml}</div>`
-
         return div
     }
 
@@ -514,16 +505,32 @@ window.tweetFetcher = (() => {
         renderNextBatch()
     }
 
+    function checkForNewTweets() {
+        const displayedTweetIds = new Set()
+        document.querySelectorAll('#tweetList .tweet').forEach(el => {
+            const tweetId = el.getAttribute('data-tweet-id')
+            if (tweetId) displayedTweetIds.add(tweetId)
+        })
+        refreshAllSortedTweetsFromCache()
+        const newTweets = allSortedTweets.filter(
+            t => !displayedTweetIds.has(`${t.chainId}-${t.id}`)
+        )
+        if (newTweets.length > 0) {
+            showNewPostsBtn.textContent = `Show ${newTweets.length} new post${newTweets.length > 1 ? 's' : ''}`
+            newPostsBanner.style.display = 'block'
+        }
+    }
+
     function init() {
         chainInfoMap = new Map((window.chains || []).map(c => [c.chainId, c]))
         userFollows = loadFollowCache()
 
+        newPostsBanner = document.getElementById('newPostsBanner')
         showNewPostsBtn = document.getElementById('showNewPostsBtn')
         tweetList = document.getElementById('tweetList')
 
         const forYouTab = document.getElementById('forYouTab')
         const followingTab = document.getElementById('followingTab')
-        const newPostsBanner = document.getElementById('newPostsBanner')
 
         if (forYouTab && followingTab) {
             forYouTab.addEventListener('click', () => {
@@ -531,6 +538,7 @@ window.tweetFetcher = (() => {
                 currentActiveTab = 'forYou'
                 forYouTab.classList.add('active')
                 followingTab.classList.remove('active')
+                if (newPostsBanner) newPostsBanner.style.display = 'none'
                 renderInitialTweets()
             })
             followingTab.addEventListener('click', () => {
@@ -538,6 +546,7 @@ window.tweetFetcher = (() => {
                 currentActiveTab = 'following'
                 followingTab.classList.add('active')
                 forYouTab.classList.remove('active')
+                if (newPostsBanner) newPostsBanner.style.display = 'none'
                 renderInitialTweets()
             })
         }
