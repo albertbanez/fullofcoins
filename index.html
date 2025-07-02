@@ -47,9 +47,48 @@
 
                 <!-- Tweet Composer -->
                 <div id="tweetComposer" class="tweet-composer">
-                    <!-- ... same as before ... -->
-                </div>
+                    <textarea
+                        id="tweetInput"
+                        rows="3"
+                        placeholder="What's happening?"
+                    ></textarea>
 
+                    <!-- Image Preview Area -->
+                    <div
+                        id="imagePreviewContainer"
+                        class="image-preview-container"
+                        style="display: none"
+                    >
+                        <button id="removeImageBtn" class="remove-image-btn">
+                            ×
+                        </button>
+                        <img id="imagePreview" src="#" alt="Image preview" />
+                    </div>
+
+                    <!-- Hidden file input that is triggered by the button -->
+                    <input
+                        type="file"
+                        id="imageInput"
+                        accept="image/jpeg,image/png"
+                        style="display: none"
+                    />
+
+                    <div class="composer-actions">
+                        <!-- The button to trigger the hidden file input -->
+                        <button
+                            id="attachImageBtn"
+                            class="attach-btn"
+                            title="Attach image"
+                        >
+                            🖼️
+                        </button>
+
+                        <button id="postTweetBtn">Tweet</button>
+                    </div>
+
+                    <!-- The area for status messages like "Posting..." -->
+                    <div id="tweetMessage" class="tweet-message"></div>
+                </div>
                 <div id="tweetList"><!-- Tweets will go here --></div>
             </div>
 

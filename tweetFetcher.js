@@ -7,15 +7,14 @@ window.tweetFetcher = (() => {
 
     let allSortedTweets = [] // Master list of all tweets from all chains
     let userFollows = new Map() // In-memory store for who follows whom
-    let currentFeedTweets = [] // NEW: This holds the tweets for the *currently visible* feed.
-    let currentActiveTab = 'forYou' // NEW: Can be 'forYou' or 'following'
+    let currentFeedTweets = [] // This holds the tweets for the *currently visible* feed.
+    let currentActiveTab = 'forYou' // Can be 'forYou' or 'following'
 
+    // MODIFIED: Removed unused variables
     let currentOffset = 0
     const BATCH_SIZE = 10
     const BACKFILL_CHUNK_SIZE = 5000
     const BACKFILL_INTERVAL = 10000
-    let pendingNewTweets = []
-    let newPostsBanner = null
     let showNewPostsBtn = null
     let tweetList = null
     let isBackfilling = false
@@ -284,7 +283,12 @@ window.tweetFetcher = (() => {
         }
         saveTweetCache(tweetCache)
         saveFollowCache(userFollows)
-        if (hasNewTweets) checkForNewTweets()
+        if (hasNewTweets) {
+            const banner = document.getElementById('newPostsBanner')
+            if (banner) {
+                banner.style.display = 'block'
+            }
+        }
         if (ENABLE_BACKGROUND_BACKFILL) startBackgroundBackfill(chains)
     }
     async function startBackgroundBackfill(chains) {
@@ -388,11 +392,7 @@ window.tweetFetcher = (() => {
         p.appendChild(document.createTextNode(str))
         return p.innerHTML
     }
-
-    // MODIFIED: This function is now simpler as filtering is handled elsewhere.
     function createTweetElement(tweet) {
-        // This function's internal logic is UNCHANGED from your last version.
-        // It already correctly renders the follow button based on `userFollows`.
         const div = document.createElement('div')
         div.className = 'tweet'
         div.setAttribute('data-tweet-id', `${tweet.chainId}-${tweet.id}`)
@@ -447,6 +447,7 @@ window.tweetFetcher = (() => {
             ? `<button class="follow-btn ${isFollowing ? 'following' : ''}" data-author="${tweet.author}" data-chain-id="${tweet.chainId}"><span>${isFollowing ? 'Following' : 'Follow'}</span></button>`
             : ''
         const likeButtonHtml = `<button class="like-btn ${userHasLiked ? 'liked' : ''}" data-tweet-id="${tweet.id}" data-chain-id="${tweet.chainId}"><span class="icon">${userHasLiked ? '❤️' : '🤍'}</span><span class="count">${tweet.likeCount || 0}</span></button>`
+
         div.innerHTML = `<div class="tweet-header"><strong class="tweet-author">${tweet.author}</strong>${followButtonHtml}</div><p>${escapeHTML(tweet.content)}</p>${imageHtml}<small>⛓ Chain: ${chainName} • 🕒 ${finalDateTimeString}</small><div class="tweet-actions">${likeButtonHtml}</div>`
 
         return div
@@ -463,18 +464,14 @@ window.tweetFetcher = (() => {
         })
         allSortedTweets = combined.sort(compareTweets)
     }
-
-    // NEW: This function filters the master list based on the active tab.
     function filterTweetsForFeed() {
         if (currentActiveTab === 'following') {
             if (!window.connectedAddress) {
-                currentFeedTweets = [] // Not logged in, so following feed is empty
+                currentFeedTweets = []
                 return
             }
             const myProfile = userFollows.get(window.connectedAddress)
             const followingSet = myProfile ? myProfile.following : new Set()
-
-            // Include tweets from people I follow, AND my own tweets.
             currentFeedTweets = allSortedTweets.filter(
                 tweet =>
                     followingSet.has(tweet.author) ||
@@ -482,12 +479,9 @@ window.tweetFetcher = (() => {
                         window.connectedAddress.toLowerCase()
             )
         } else {
-            // "For You" tab shows all tweets
             currentFeedTweets = allSortedTweets
         }
     }
-
-    // MODIFIED: This now renders from `currentFeedTweets`
     function renderNextBatch() {
         if (currentOffset >= currentFeedTweets.length) return
         const fragment = document.createDocumentFragment()
@@ -501,16 +495,11 @@ window.tweetFetcher = (() => {
         tweetList.appendChild(fragment)
         currentOffset += BATCH_SIZE
     }
-
-    // MODIFIED: This is now the main rendering orchestrator.
     function renderInitialTweets() {
         tweetList.innerHTML = ''
         currentOffset = 0
-
-        refreshAllSortedTweetsFromCache() // Step 1: Get all tweets from cache
-        filterTweetsForFeed() // Step 2: Filter them based on the active tab
-
-        // Step 3: Render the result
+        refreshAllSortedTweetsFromCache()
+        filterTweetsForFeed()
         if (currentFeedTweets.length === 0) {
             const message =
                 currentActiveTab === 'following' && window.connectedAddress
@@ -525,24 +514,16 @@ window.tweetFetcher = (() => {
         renderNextBatch()
     }
 
-    function showPendingTweets() {
-        /* ... same as before ... */
-    }
-    function checkForNewTweets() {
-        /* ... same as before ... */
-    }
-
-    // MODIFIED: init now sets up the tab click listeners.
     function init() {
         chainInfoMap = new Map((window.chains || []).map(c => [c.chainId, c]))
         userFollows = loadFollowCache()
 
-        newPostsBanner = document.getElementById('newPostsBanner')
         showNewPostsBtn = document.getElementById('showNewPostsBtn')
         tweetList = document.getElementById('tweetList')
 
         const forYouTab = document.getElementById('forYouTab')
         const followingTab = document.getElementById('followingTab')
+        const newPostsBanner = document.getElementById('newPostsBanner')
 
         if (forYouTab && followingTab) {
             forYouTab.addEventListener('click', () => {
@@ -550,20 +531,23 @@ window.tweetFetcher = (() => {
                 currentActiveTab = 'forYou'
                 forYouTab.classList.add('active')
                 followingTab.classList.remove('active')
-                renderInitialTweets() // Re-render the feed
+                renderInitialTweets()
             })
-
             followingTab.addEventListener('click', () => {
                 if (currentActiveTab === 'following') return
                 currentActiveTab = 'following'
                 followingTab.classList.add('active')
                 forYouTab.classList.remove('active')
-                renderInitialTweets() // Re-render the feed
+                renderInitialTweets()
             })
         }
-
         if (showNewPostsBtn) {
-            showNewPostsBtn.addEventListener('click', showPendingTweets)
+            showNewPostsBtn.addEventListener('click', () => {
+                renderInitialTweets()
+                if (newPostsBanner) {
+                    newPostsBanner.style.display = 'none'
+                }
+            })
         }
 
         let scrollTimeout = null
@@ -582,9 +566,8 @@ window.tweetFetcher = (() => {
         })
     }
 
-    // MODIFIED: refreshUI must also now re-render the feed correctly
     function refreshUI() {
-        userFollows = loadFollowCache() // Re-load follow data in case it changed
+        userFollows = loadFollowCache()
         renderInitialTweets()
     }
 
@@ -592,7 +575,6 @@ window.tweetFetcher = (() => {
         init,
         loadCachedTweets: renderInitialTweets,
         fetchAndUpdateTweets,
-        checkForNewTweets,
         refreshUI,
     }
 })()
