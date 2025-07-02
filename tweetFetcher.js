@@ -169,11 +169,12 @@ window.tweetFetcher = (() => {
         }
         return allEvents
     }
-    function processEvents(events, existingTweets, existingFollows, chainId) {
+    function processEvents(events, existingTweets, userFollowsMap, chainId) {
         const tweetMap = new Map(
             existingTweets.map(t => [`${t.chainId}-${t.id}`, t])
         )
-        const userFollowsMap = existingFollows || new Map()
+
+        // The `getProfile` function will now modify the userFollowsMap that was passed in.
         const getProfile = addr => {
             if (!userFollowsMap.has(addr))
                 userFollowsMap.set(addr, {
@@ -182,9 +183,11 @@ window.tweetFetcher = (() => {
                 })
             return userFollowsMap.get(addr)
         }
+
         events.sort(
             (a, b) => a.blockNumber - b.blockNumber || a.logIndex - b.logIndex
         )
+
         for (const event of events) {
             const { name, args } = event
             if (name === 'TweetPosted') {
@@ -220,18 +223,24 @@ window.tweetFetcher = (() => {
                 getProfile(args.follower).following.add(args.followed)
                 getProfile(args.followed).followers.add(args.follower)
             } else if (name === 'UserUnfollowed') {
+                // This logic is correct, but it now modifies the passed-in map.
                 getProfile(args.follower).following.delete(args.followed)
                 getProfile(args.followed).followers.delete(args.follower)
             }
         }
+
         const finalTweets = Array.from(tweetMap.values())
         finalTweets.forEach(t => (t.likers = Array.from(t.likers)))
-        return { tweets: finalTweets, follows: userFollowsMap }
+
+        // Only return the tweets, which are chain-specific.
+        return { tweets: finalTweets }
     }
     async function fetchAndUpdateTweets(chains) {
         const tweetCache = loadTweetCache()
-        const followCache = loadFollowCache()
+        // Load the global follow map once at the beginning.
+        userFollows = loadFollowCache()
         let hasNewData = false
+
         for (const chain of chains) {
             const chainIdStr = chain.chainId.toString()
             const provider = new ethers.providers.JsonRpcProvider(chain.rpcUrl)
@@ -255,26 +264,30 @@ window.tweetFetcher = (() => {
             } else {
                 continue
             }
+
             const freshEvents = await fetchEventsForRange({
                 ...chain,
                 fromBlock: fetchFrom,
                 toBlock: fetchTo,
             })
+
             if (freshEvents.length > 0) {
                 hasNewData = true
                 const existingTweets = (
                     tweetCache[chainIdStr]?.tweets || []
                 ).map(t => ({ ...t, likers: new Set(t.likers) }))
-                const { tweets: updatedTweets, follows: updatedFollows } =
-                    processEvents(
-                        freshEvents,
-                        existingTweets,
-                        followCache,
-                        chain.chainId
-                    )
+
+                // processEvents now modifies userFollows directly and only returns tweets.
+                const { tweets: updatedTweets } = processEvents(
+                    freshEvents,
+                    existingTweets,
+                    userFollows,
+                    chain.chainId
+                )
+
                 tweetCache[chainIdStr].tweets = updatedTweets
-                userFollows = updatedFollows
             }
+
             if (!tweetCache[chainIdStr].scannedRanges)
                 tweetCache[chainIdStr].scannedRanges = []
             tweetCache[chainIdStr].scannedRanges.push({
@@ -282,8 +295,11 @@ window.tweetFetcher = (() => {
                 to: fetchTo,
             })
         }
+
+        // Save both caches once after the loop is finished.
         saveTweetCache(tweetCache)
         saveFollowCache(userFollows)
+
         if (hasNewData) {
             checkForNewTweets()
         }
@@ -293,9 +309,11 @@ window.tweetFetcher = (() => {
         if (isBackfilling) return
         isBackfilling = true
         const backfillLoop = async () => {
+            // Load caches at the start of the loop cycle
             const tweetCache = loadTweetCache()
             const followCache = loadFollowCache()
             let gapFound = false
+
             for (const chain of chains) {
                 const chainIdStr = chain.chainId.toString()
                 const chainData = tweetCache[chainIdStr]
@@ -314,6 +332,7 @@ window.tweetFetcher = (() => {
                     }
                     lastTo = range.to
                 }
+
                 if (highestGap.size > 1) {
                     gapFound = true
                     const from = Math.max(
@@ -326,43 +345,38 @@ window.tweetFetcher = (() => {
                         fromBlock: from,
                         toBlock: to,
                     })
+
                     if (filledEvents.length > 0) {
-                        const currentTweetCache = loadTweetCache()
-                        const currentFollowCache = loadFollowCache()
                         const existingTweets = (
-                            currentTweetCache[chainIdStr]?.tweets || []
+                            tweetCache[chainIdStr]?.tweets || []
                         ).map(t => ({ ...t, likers: new Set(t.likers) }))
-                        const {
-                            tweets: updatedTweets,
-                            follows: updatedFollows,
-                        } = processEvents(
+
+                        // Pass `followCache` (the map) to be modified directly
+                        const { tweets: updatedTweets } = processEvents(
                             filledEvents,
                             existingTweets,
-                            currentFollowCache,
+                            followCache,
                             chain.chainId
                         )
-                        currentTweetCache[chainIdStr].tweets = updatedTweets
-                        if (!currentTweetCache[chainIdStr].scannedRanges)
-                            currentTweetCache[chainIdStr].scannedRanges = []
-                        currentTweetCache[chainIdStr].scannedRanges.push({
-                            from,
-                            to,
-                        })
-                        saveTweetCache(currentTweetCache)
-                        saveFollowCache(updatedFollows)
+
+                        tweetCache[chainIdStr].tweets = updatedTweets
+                        if (!tweetCache[chainIdStr].scannedRanges)
+                            tweetCache[chainIdStr].scannedRanges = []
+                        tweetCache[chainIdStr].scannedRanges.push({ from, to })
+
+                        // Save both caches with the updated data
+                        saveTweetCache(tweetCache)
+                        saveFollowCache(followCache)
                         renderInitialTweets()
                     } else {
-                        const currentTweetCache = loadTweetCache()
-                        if (!currentTweetCache[chainIdStr])
-                            currentTweetCache[chainIdStr] = {
+                        // Still save the scanned range even if no events were found
+                        if (!tweetCache[chainIdStr])
+                            tweetCache[chainIdStr] = {
                                 tweets: [],
                                 scannedRanges: [],
                             }
-                        currentTweetCache[chainIdStr].scannedRanges.push({
-                            from,
-                            to,
-                        })
-                        saveTweetCache(currentTweetCache)
+                        tweetCache[chainIdStr].scannedRanges.push({ from, to })
+                        saveTweetCache(tweetCache)
                     }
                     break
                 }
@@ -375,7 +389,6 @@ window.tweetFetcher = (() => {
         }
         setTimeout(backfillLoop, 5000)
     }
-
     // --- Rendering Logic ---
     function compareTweets(a, b) {
         if (b.blockNumber !== a.blockNumber)
