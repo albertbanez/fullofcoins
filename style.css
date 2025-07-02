@@ -516,3 +516,32 @@ body.menu-is-open .sidebar-overlay {
 .follow-btn.following:hover span {
     display: none;
 }
+
+/* --- NEW STYLES FOR FEED NAVIGATION TABS --- */
+
+.feed-nav {
+    display: flex;
+    border-bottom: 1px solid #ddd;
+    background-color: white;
+}
+
+.nav-item {
+    flex: 1;
+    text-align: center;
+    padding: 15px;
+    font-weight: bold;
+    color: #657786; /* Twitter gray */
+    cursor: pointer;
+    position: relative;
+    transition: background-color 0.2s ease;
+}
+
+.nav-item:hover {
+    background-color: #f5f8fa; /* Light gray on hover */
+}
+
+/* Style for the active tab */
+.nav-item.active {
+    color: #14171a; /* Black */
+    border-bottom: 2px solid #1da1f2; /* Twitter blue underline */
+}
