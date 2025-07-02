@@ -4,8 +4,8 @@ window.tweetFetcher = (() => {
     // --- State and Config ---
     let chainInfoMap = new Map()
     const ENABLE_BACKGROUND_BACKFILL = true
-    const tweetCacheKey = 'cachedTweets_v3'
-    const followCacheKey = 'cachedFollows_v1'
+    const tweetCacheKey = 'cachedTweets_v5'
+    const followCacheKey = 'cachedFollows_v5'
 
     let allSortedTweets = []
     let userFollows = new Map()
