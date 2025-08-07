@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>fullofcoins</title>
+        <link rel="icon" href="favicon.png" type="image/png" />
+        <link rel="stylesheet" href="style.css?v=1.9" />
+    </head>
+    <body>
+        <div class="layout-wrapper">
+            <!-- Sidebar -->
+            <div class="sidebar" id="sidebar">
+                <h2>fullofcoins</h2>
+                <ul>
+                    <li>🏠 Home</li>
+                    <li>📟 Explore</li>
+                    <li>👤 Profile</li>
+                    <li><button id="connectBtn">Connect Wallet</button></li>
+                </ul>
+                <div id="walletAddress" class="wallet-address"></div>
+            </div>
+
+            <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+            <!-- Main Feed -->
+            <div class="main-feed">
+                <div class="feed-header">
+                    <button id="menu-toggle-btn" class="menu-toggle">☰</button>
+                    <h2>Decentralized Tweets</h2>
+                    <!-- Changed title to "Home" -->
+                    <button id="right-panel-toggle-btn" class="menu-toggle">
+                        ⋮
+                    </button>
+                </div>
+
+                <!-- NEW: Feed Navigation Tabs -->
+                <div class="feed-nav">
+                    <div class="nav-item active" id="forYouTab">For You</div>
+                    <div class="nav-item" id="followingTab">Following</div>
+                </div>
+
+                <!-- New Posts Banner -->
+                <div id="newPostsBanner" style="display: none">
+                    <button id="showNewPostsBtn">Show new posts</button>
+                </div>
+
+                <!-- Tweet Composer -->
+                <div id="tweetComposer" class="tweet-composer">
+                    <textarea
+                        id="tweetInput"
+                        rows="3"
+                        placeholder="What's happening?"
+                    ></textarea>
+
+                    <!-- Image Preview Area -->
+                    <div
+                        id="imagePreviewContainer"
+                        class="image-preview-container"
+                        style="display: none"
+                    >
+                        <button id="removeImageBtn" class="remove-image-btn">
+                            ×
+                        </button>
+                        <img id="imagePreview" src="#" alt="Image preview" />
+                    </div>
+
+                    <!-- Hidden file input that is triggered by the button -->
+                    <input
+                        type="file"
+                        id="imageInput"
+                        accept="image/jpeg,image/png"
+                        style="display: none"
+                    />
+
+                    <div class="composer-actions">
+                        <!-- The button to trigger the hidden file input -->
+                        <button
+                            id="attachImageBtn"
+                            class="attach-btn"
+                            title="Attach image"
+                        >
+                            🖼️
+                        </button>
+
+                        <button id="postTweetBtn">Tweet</button>
+                    </div>
+
+                    <!-- The area for status messages like "Posting..." -->
+                    <div id="tweetMessage" class="tweet-message"></div>
+                </div>
+                <div id="tweetList"><!-- Tweets will go here --></div>
+            </div>
+
+            <!-- Right Panel -->
+            <div class="right-panel" id="right-panel">
+                <h3>Coming Soon</h3>
+                <p>Analytics, Suggestions, or Ads</p>
+            </div>
+        </div>
+
+        <!-- Wallet Modal -->
+        <div id="walletModal" class="modal">
+            <div class="modal-content">
+                <h3>Connect Wallet</h3>
+                <button id="metamaskBtn">🦄 Connect with MetaMask</button>
+                <button id="closeModal" class="close-btn">Cancel</button>
+            </div>
+        </div>
+
+        <div id="toast" class="toast"></div>
+
+        <!-- Scripts -->
+        <script src="https://unpkg.com/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+        <script src="abi.js?v=1.9"></script>
+        <script src="app.js?v=1.9"></script>
+        <script src="tweetPost.js?v=1.9"></script>
+        <script src="tweetFetcher.js?v=1.9"></script>
+        <script src="like.js?v=1.9"></script>
+        <script src="follow.js?v=1.9"></script>
+
+        <script>
+            window.chains = [
+                {
+                    name: 'Sepolia',
+                    rpcUrl: 'https://ethereum-sepolia.publicnode.com',
+                    contractAddress:
+                        '0xba04E4e376862A98B7B2175107ebc438aC032b25',
+                    startBlock: 8594107,
+                    chainId: 11155111,
+                },
+            ]
+            window.addEventListener('DOMContentLoaded', () => {
+                const ready = setInterval(() => {
+                    if (window.tweetFetcher && window.ethers) {
+                        clearInterval(ready)
+
+                        const leftToggleBtn =
+                            document.getElementById('menu-toggle-btn')
+                        const rightToggleBtn = document.getElementById(
+                            'right-panel-toggle-btn'
+                        )
+                        const leftPanel = document.getElementById('sidebar')
+                        const rightPanel =
+                            document.getElementById('right-panel')
+                        const overlay =
+                            document.getElementById('sidebar-overlay')
+                        const walletModal =
+                            document.getElementById('walletModal')
+                        const connectBtn = document.getElementById('connectBtn')
+                        const closeModal = document.getElementById('closeModal')
+
+                        function closeAllPanels() {
+                            leftPanel.classList.remove('is-open')
+                            rightPanel.classList.remove('is-open')
+                            document.body.classList.remove('menu-is-open')
+                        }
+
+                        if (leftToggleBtn) {
+                            leftToggleBtn.addEventListener('click', e => {
+                                e.stopPropagation()
+                                const isOpen =
+                                    leftPanel.classList.contains('is-open')
+                                closeAllPanels()
+                                if (!isOpen) {
+                                    leftPanel.classList.add('is-open')
+                                    document.body.classList.add('menu-is-open')
+                                }
+                            })
+                        }
+
+                        if (rightToggleBtn) {
+                            rightToggleBtn.addEventListener('click', e => {
+                                e.stopPropagation()
+                                const isOpen =
+                                    rightPanel.classList.contains('is-open')
+                                closeAllPanels()
+                                if (!isOpen) {
+                                    rightPanel.classList.add('is-open')
+                                    document.body.classList.add('menu-is-open')
+                                }
+                            })
+                        }
+
+                        if (overlay) {
+                            overlay.addEventListener('click', closeAllPanels)
+                        }
+
+                        tweetFetcher.init()
+                        tweetFetcher.loadCachedTweets()
+                        ;(async () => {
+                            await tweetFetcher.fetchAndUpdateTweets(
+                                window.chains
+                            )
+                        })()
+
+                        setInterval(
+                            () =>
+                                tweetFetcher.fetchAndUpdateTweets(
+                                    window.chains
+                                ),
+                            60000
+                        )
+                    }
+                }, 100)
+            })
+        </script>
+    </body>
+</html>
